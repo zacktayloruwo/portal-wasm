@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Census Discovery Portal</title>
+  <link rel="icon" href="favicon.ico" />
+</head>
+<body>
+  <div id="app-loading-overlay">
+    <div class="portal-spinner"></div>
+    <span id="app-loading-status">Loading…</span>
+  </div>
+
+  <div class="portal-container">
+    <header class="portal-header">
+      <h2 class="portal-apptitle" data-i18n="apptitle">Census Discovery Portal</h2>
+      <div class="portal-lang">
+        <span class="portal-lang-label">EN</span>
+        <input type="checkbox" role="switch" id="language" aria-label="English / Français" />
+        <span class="portal-lang-label">FR</span>
+      </div>
+    </header>
+
+    <nav class="portal-tabs" role="tablist">
+      <button type="button" role="tab" data-tab="search" data-i18n="search">Search by Controlled Vocabulary</button>
+      <button type="button" role="tab" data-tab="search_kw" data-i18n="search_kw">Search by Keyword</button>
+      <button type="button" role="tab" data-tab="visualize" data-i18n="visualize">Visualize</button>
+      <button type="button" role="tab" data-tab="documentation" data-i18n="documentation">Documentation</button>
+      <button type="button" role="tab" data-tab="about" data-i18n="about">About</button>
+    </nav>
+
+    <main>
+      <section class="portal-panel" id="panel-search" hidden></section>
+      <section class="portal-panel" id="panel-search_kw" hidden></section>
+      <section class="portal-panel" id="panel-visualize" hidden></section>
+      <section class="portal-panel" id="panel-documentation" hidden></section>
+      <section class="portal-panel" id="panel-about" hidden></section>
+    </main>
+  </div>
+
+  <footer class="portal-footer">
+    <span>App Version: <span id="footer-version"></span></span>
+    <span>App Last Updated: <span id="footer-app-date"></span></span>
+    <span>Database Last Updated: <span id="footer-db-date"></span></span>
+  </footer>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

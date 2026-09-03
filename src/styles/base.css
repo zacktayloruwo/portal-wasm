@@ -1,0 +1,180 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   BASE  — replaces the Bootstrap 3 / selectize / reactable styling the Shiny
+   app inherited.  Portal-specific rules live in portal.css.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { font-size: 14px; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.43;
+  color: #333;
+  background: #fff;
+}
+
+a { color: #337ab7; }
+h2 { font-size: 30px; font-weight: 500; margin: 20px 0 10px; }
+h3 { font-size: 24px; font-weight: 500; margin: 20px 0 10px; }
+
+.portal-container { padding: 0 15px; }
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+.portal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.portal-apptitle { margin: 12px 0; }
+.portal-lang {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: bold;
+  color: #555;
+}
+
+/* ── Tabs ───────────────────────────────────────────────────────────────── */
+nav.portal-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  border-bottom: 1px solid #ddd;
+  margin-bottom: 0;
+}
+nav.portal-tabs button {
+  appearance: none;
+  background: #fff;
+  color: #999;
+  font: inherit;
+  font-weight: 800;
+  font-size: 15px;
+  padding: 10px 15px;
+  margin: 0 2px -1px 0;
+  border: 1px solid #ddd;
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  cursor: pointer;
+}
+nav.portal-tabs button:hover { background: #eee; }
+nav.portal-tabs button.active,
+nav.portal-tabs button.active:focus {
+  background: #0b5394;
+  color: #fff;
+}
+
+.portal-panel[hidden] { display: none; }
+
+/* ── Grid columns (Bootstrap replacement) ───────────────────────────────── */
+.portal-col-12 { flex: 0 0 100%; max-width: 100%; }
+.portal-col-6  { flex: 0 0 50%;  max-width: 50%; }
+.portal-col-4  { flex: 0 0 33.3333%; max-width: 33.3333%; }
+.portal-col-2  { flex: 0 0 16.6667%; max-width: 16.6667%; }
+[class*="portal-col-"] { padding: 0 15px; min-width: 0; }
+
+.portal-body { padding: 8px 20px 0; }
+
+/* ── Form controls ──────────────────────────────────────────────────────── */
+.portal-label {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+.form-control,
+select.form-control,
+input.form-control {
+  display: block;
+  width: 100%;
+  height: 34px;
+  padding: 6px 12px;
+  font: inherit;
+  color: #555;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: inset 0 1px 1px rgba(0,0,0,.075);
+}
+.form-control:focus { border-color: #66afe9; outline: 0; }
+.form-control:disabled { background: #eee; cursor: not-allowed; }
+.portal-field { margin-bottom: 6px; }
+.portal-radio { display: block; font-weight: normal; margin: 2px 0; cursor: pointer; }
+
+/* ── Buttons ────────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-block;
+  font: inherit;
+  font-weight: 400;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: middle;
+  cursor: pointer;
+  user-select: none;
+  padding: 6px 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  color: #333;
+  line-height: 1.43;
+}
+.btn:hover { background: #e6e6e6; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+
+/* ── Tables (reactable replacement) ─────────────────────────────────────── */
+.portal-table-host { overflow-x: auto; }
+.portal-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.portal-table th,
+.portal-table td {
+  padding: 4px 8px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: .5px solid #ccc;
+}
+.portal-table th { vertical-align: bottom; font-weight: 600; }
+.portal-table tbody tr:nth-child(even) { background: #efefef; }
+.portal-table tbody tr:hover { background: #cfe2f3; }
+.portal-table .portal-no-data { text-align: center; color: #666; padding: 16px; }
+
+/* Column width hints (were reactable colDef minWidth / maxWidth) */
+.col-itemTitle       { min-width: 240px; }
+.col-itemType        { max-width: 140px; }
+.col-itemYearPub,
+.col-itemYearsCovered{ max-width: 110px; }
+.col-itemSubject     { min-width: 180px; }
+.col-itemFormat      { max-width: 110px; }
+.col-itemCensusName  { white-space: nowrap; }
+
+.portal-detail-table th.portal-detail-key { font-weight: bold; min-width: 100px; white-space: nowrap; }
+.portal-detail-table td.portal-detail-value { min-width: 300px; }
+.portal-detail-table span[data-tippy-content] { cursor: help; }
+.portal-back-btn { margin: 14px 0 4px; }
+
+/* ── Pagination ─────────────────────────────────────────────────────────── */
+.portal-pagination {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0 16px;
+}
+.portal-page-info { font-size: 13px; }
+
+/* ── Plot ───────────────────────────────────────────────────────────────── */
+.portal-plot { width: 100%; height: 60vh; }
+
+/* ── Tom Select tweaks ──────────────────────────────────────────────────── */
+.ts-wrapper { width: 100%; }
+.ts-control { min-height: 34px; border-radius: 4px; }
+.ts-wrapper.multi .ts-control > div {
+  background: #efefef;
+  border: 1px solid #d0d0d0;
+  color: #333;
+}
+.ts-dropdown { z-index: 1000; }

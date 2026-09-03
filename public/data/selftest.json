@@ -1,0 +1,133 @@
+[
+  {
+    "label": "en: no filter",
+    "lang": "en",
+    "count_sql": "SELECT COUNT(*) AS n FROM inventory_en",
+    "ids_sql": "SELECT id FROM inventory_en ORDER BY COALESCE(NULLIF(array_to_string(itemYearPub, ','), ''), itemYearsCovered[1], '') ASC NULLS LAST, itemTitle ASC NULLS LAST LIMIT 5",
+    "params": [],
+    "expected_count": 23351,
+    "first_ids": ["DP40003768", "DP40003769", "DP40003770", "DP40003771", "DP40017773"]
+  },
+  {
+    "label": "en: one subject",
+    "lang": "en",
+    "count_sql": "SELECT COUNT(*) AS n FROM inventory_en WHERE list_has_any(itemSubject, [?])",
+    "ids_sql": "SELECT id FROM inventory_en WHERE list_has_any(itemSubject, [?]) ORDER BY COALESCE(NULLIF(array_to_string(itemYearPub, ','), ''), itemYearsCovered[1], '') ASC NULLS LAST, itemTitle ASC NULLS LAST LIMIT 5",
+    "params": [
+      "Acadians"
+    ],
+    "expected_count": 1,
+    "first_ids": ["DP40001886"]
+  },
+  {
+    "label": "en: two subjects AND",
+    "lang": "en",
+    "count_sql": "SELECT COUNT(*) AS n FROM inventory_en WHERE list_has_all(itemSubject, [?, ?])",
+    "ids_sql": "SELECT id FROM inventory_en WHERE list_has_all(itemSubject, [?, ?]) ORDER BY COALESCE(NULLIF(array_to_string(itemYearPub, ','), ''), itemYearsCovered[1], '') ASC NULLS LAST, itemTitle ASC NULLS LAST LIMIT 5",
+    "params": [
+      "Acadians",
+      "Age - groups"
+    ],
+    "expected_count": 1,
+    "first_ids": ["DP40001886"]
+  },
+  {
+    "label": "en: two subjects OR",
+    "lang": "en",
+    "count_sql": "SELECT COUNT(*) AS n FROM inventory_en WHERE list_has_any(itemSubject, [?, ?])",
+    "ids_sql": "SELECT id FROM inventory_en WHERE list_has_any(itemSubject, [?, ?]) ORDER BY COALESCE(NULLIF(array_to_string(itemYearPub, ','), ''), itemYearsCovered[1], '') ASC NULLS LAST, itemTitle ASC NULLS LAST LIMIT 5",
+    "params": [
+      "Acadians",
+      "Age - groups"
+    ],
+    "expected_count": 7593,
+    "first_ids": ["DP40003771", "DP40001886", "DP20001889", "DP40000723", "DP20001048"]
+  },
+  {
+    "label": "en: census name + year",
+    "lang": "en",
+    "count_sql": "SELECT COUNT(*) AS n FROM inventory_en WHERE itemCensusName IN (?) AND list_has_any(itemYearsCovered, [?])",
+    "ids_sql": "SELECT id FROM inventory_en WHERE itemCensusName IN (?) AND list_has_any(itemYearsCovered, [?]) ORDER BY COALESCE(NULLIF(array_to_string(itemYearPub, ','), ''), itemYearsCovered[1], '') ASC NULLS LAST, itemTitle ASC NULLS LAST LIMIT 5",
+    "params": [
+      "1981 Census of Population",
+      "1921"
+    ],
+    "expected_count": 35,
+    "first_ids": ["DP20026207", "DP20026257", "DP20026294", "DP20026344", "DP20026394"]
+  },
+  {
+    "label": "en: kw \"place of birth\" mort (AND)",
+    "lang": "en",
+    "count_sql": "SELECT COUNT(*) AS n FROM inventory_en WHERE (replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(COALESCE(itemTitle, '')), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%' OR EXISTS (SELECT 1 FROM UNNEST(itemSubject) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%') OR EXISTS (SELECT 1 FROM UNNEST(itemGeoCoverage) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%') OR EXISTS (SELECT 1 FROM UNNEST(itemGeoUnits) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%')) AND (replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(COALESCE(itemTitle, '')), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%' OR EXISTS (SELECT 1 FROM UNNEST(itemSubject) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%') OR EXISTS (SELECT 1 FROM UNNEST(itemGeoCoverage) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%') OR EXISTS (SELECT 1 FROM UNNEST(itemGeoUnits) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%'))",
+    "ids_sql": "SELECT id FROM inventory_en WHERE (replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(COALESCE(itemTitle, '')), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%' OR EXISTS (SELECT 1 FROM UNNEST(itemSubject) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%') OR EXISTS (SELECT 1 FROM UNNEST(itemGeoCoverage) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%') OR EXISTS (SELECT 1 FROM UNNEST(itemGeoUnits) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%')) AND (replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(COALESCE(itemTitle, '')), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%' OR EXISTS (SELECT 1 FROM UNNEST(itemSubject) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%') OR EXISTS (SELECT 1 FROM UNNEST(itemGeoCoverage) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%') OR EXISTS (SELECT 1 FROM UNNEST(itemGeoUnits) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%')) ORDER BY COALESCE(NULLIF(array_to_string(itemYearPub, ','), ''), itemYearsCovered[1], '') ASC NULLS LAST, itemTitle ASC NULLS LAST LIMIT 5",
+    "params": [
+      "place of birth",
+      "place of birth",
+      "place of birth",
+      "place of birth",
+      "mort",
+      "mort",
+      "mort",
+      "mort"
+    ],
+    "expected_count": 89,
+    "first_ids": ["DP20002457", "DP20000754", "DP20000753", "DP20000765", "DP20000766"]
+  },
+  {
+    "label": "en: kw \"place of birth\" mort (OR)",
+    "lang": "en",
+    "count_sql": "SELECT COUNT(*) AS n FROM inventory_en WHERE ((replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(COALESCE(itemTitle, '')), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%' OR EXISTS (SELECT 1 FROM UNNEST(itemSubject) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%') OR EXISTS (SELECT 1 FROM UNNEST(itemGeoCoverage) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%') OR EXISTS (SELECT 1 FROM UNNEST(itemGeoUnits) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%')) OR (replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(COALESCE(itemTitle, '')), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%' OR EXISTS (SELECT 1 FROM UNNEST(itemSubject) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%') OR EXISTS (SELECT 1 FROM UNNEST(itemGeoCoverage) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%') OR EXISTS (SELECT 1 FROM UNNEST(itemGeoUnits) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%')))",
+    "ids_sql": "SELECT id FROM inventory_en WHERE ((replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(COALESCE(itemTitle, '')), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%' OR EXISTS (SELECT 1 FROM UNNEST(itemSubject) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%') OR EXISTS (SELECT 1 FROM UNNEST(itemGeoCoverage) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%') OR EXISTS (SELECT 1 FROM UNNEST(itemGeoUnits) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%')) OR (replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(COALESCE(itemTitle, '')), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%' OR EXISTS (SELECT 1 FROM UNNEST(itemSubject) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%') OR EXISTS (SELECT 1 FROM UNNEST(itemGeoCoverage) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%') OR EXISTS (SELECT 1 FROM UNNEST(itemGeoUnits) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%'))) ORDER BY COALESCE(NULLIF(array_to_string(itemYearPub, ','), ''), itemYearsCovered[1], '') ASC NULLS LAST, itemTitle ASC NULLS LAST LIMIT 5",
+    "params": [
+      "place of birth",
+      "place of birth",
+      "place of birth",
+      "place of birth",
+      "mort",
+      "mort",
+      "mort",
+      "mort"
+    ],
+    "expected_count": 2246,
+    "first_ids": ["DP40017773", "DP40001886", "DP20002720", "DP40002718", "DP20002717"]
+  },
+  {
+    "label": "fr: kw donnees",
+    "lang": "fr",
+    "count_sql": "SELECT COUNT(*) AS n FROM inventory_fr WHERE (replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(COALESCE(itemTitle, '')), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%' OR EXISTS (SELECT 1 FROM UNNEST(itemSubject) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%') OR EXISTS (SELECT 1 FROM UNNEST(itemGeoCoverage) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%') OR EXISTS (SELECT 1 FROM UNNEST(itemGeoUnits) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%'))",
+    "ids_sql": "SELECT id FROM inventory_fr WHERE (replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(COALESCE(itemTitle, '')), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%' OR EXISTS (SELECT 1 FROM UNNEST(itemSubject) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%') OR EXISTS (SELECT 1 FROM UNNEST(itemGeoCoverage) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%') OR EXISTS (SELECT 1 FROM UNNEST(itemGeoUnits) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%')) ORDER BY COALESCE(NULLIF(array_to_string(itemYearPub, ','), ''), itemYearsCovered[1], '') ASC NULLS LAST, itemTitle ASC NULLS LAST LIMIT 5",
+    "params": [
+      "donnees",
+      "donnees",
+      "donnees",
+      "donnees"
+    ],
+    "expected_count": 2199,
+    "first_ids": ["DP10002330", "RP40000475", "DP10000473", "DP10000474", "RP40002107"]
+  },
+  {
+    "label": "fr: kw données",
+    "lang": "fr",
+    "count_sql": "SELECT COUNT(*) AS n FROM inventory_fr WHERE (replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(COALESCE(itemTitle, '')), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%' OR EXISTS (SELECT 1 FROM UNNEST(itemSubject) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%') OR EXISTS (SELECT 1 FROM UNNEST(itemGeoCoverage) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%') OR EXISTS (SELECT 1 FROM UNNEST(itemGeoUnits) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%'))",
+    "ids_sql": "SELECT id FROM inventory_fr WHERE (replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(COALESCE(itemTitle, '')), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%' OR EXISTS (SELECT 1 FROM UNNEST(itemSubject) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%') OR EXISTS (SELECT 1 FROM UNNEST(itemGeoCoverage) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%') OR EXISTS (SELECT 1 FROM UNNEST(itemGeoUnits) _kw(v) WHERE replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(LOWER(v), 'é', 'e'), 'è', 'e'), 'ê', 'e'), 'ë', 'e'), 'à', 'a'), 'â', 'a'), 'ä', 'a'), 'ù', 'u'), 'û', 'u'), 'ü', 'u'), 'î', 'i'), 'ï', 'i'), 'ô', 'o'), 'ö', 'o'), 'ç', 'c'), 'œ', 'oe'), 'æ', 'ae') LIKE '%' || ? || '%')) ORDER BY COALESCE(NULLIF(array_to_string(itemYearPub, ','), ''), itemYearsCovered[1], '') ASC NULLS LAST, itemTitle ASC NULLS LAST LIMIT 5",
+    "params": [
+      "donnees",
+      "donnees",
+      "donnees",
+      "donnees"
+    ],
+    "expected_count": 2199,
+    "first_ids": ["DP10002330", "RP40000475", "DP10000473", "DP10000474", "RP40002107"]
+  },
+  {
+    "label": "fr: one subject",
+    "lang": "fr",
+    "count_sql": "SELECT COUNT(*) AS n FROM inventory_fr WHERE list_has_any(itemSubject, [?])",
+    "ids_sql": "SELECT id FROM inventory_fr WHERE list_has_any(itemSubject, [?]) ORDER BY COALESCE(NULLIF(array_to_string(itemYearPub, ','), ''), itemYearsCovered[1], '') ASC NULLS LAST, itemTitle ASC NULLS LAST LIMIT 5",
+    "params": [
+      "Aborigènes"
+    ],
+    "expected_count": 3,
+    "first_ids": ["DP20021234", "DP20021235", "DP20021236"]
+  }
+]
