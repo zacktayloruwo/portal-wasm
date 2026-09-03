@@ -363,3 +363,17 @@ body { padding-bottom: 26px; }
 .portal-toc-h2 { margin-left: 0; }
 .portal-toc-h3 { margin-left: 14px; }
 .portal-md-loading, .portal-md-error { padding: 24px 32px; color: #666; }
+
+/* Footer: let the three items wrap on narrow screens instead of overflowing */
+@media (max-width: 767px) {
+  .portal-footer {
+    height: auto;
+    min-height: 22px;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+    padding: 4px 12px;
+    line-height: 1.2;
+  }
+  .portal-footer span + span::before { content: none; margin: 0; }
+  body { padding-bottom: 60px; }
+}
