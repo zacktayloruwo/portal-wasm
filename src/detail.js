@@ -1,10 +1,20 @@
+/**
+ * detail.js — the "Selected Record" view opened by clicking a title.
+ *
+ * Replaces the results block with:
+ *   [← Back to Results]
+ *   Selected Record
+ *   | Field label (tooltip) | value |   … one row per field
+ *
+ * Which fields, in which order, comes from meta.columns: every column flagged
+ * visible_detail that has a popup definition (25 of them), in database order.
+ * That reproduces the pivot_longer + left_join(popups) pipeline in mod_search.R.
+ */
 import { el, escapeHtml, escapeAttr, joinList } from './util.js';
 import { accessLinksHtml } from './links.js';
 import { getMeta, lang, tr } from './i18n.js';
 import { initTippy } from './tooltips.js';
 
-// Detail view: back button, title, two-column key/value table where each key
-// is a tippy tooltip span (was popups[[lang]] in the Shiny app).
 export function createDetailView({ container, onBack }) {
   const back = el('button', { class: 'btn btn-default portal-btn-green portal-back-btn', type: 'button' });
   back.addEventListener('click', onBack);
@@ -13,7 +23,7 @@ export function createDetailView({ container, onBack }) {
   const root = el('div', { class: 'portal-detail', hidden: true }, [back, title, host]);
   container.appendChild(root);
 
-  let row = null;
+  let row = null; // the record currently shown (full row from SELECT * WHERE id = ?)
 
   function valueHtml(c) {
     if (c.key === 'access_link') return accessLinksHtml(row.access_urls, row.access_labels);
@@ -29,6 +39,7 @@ export function createDetailView({ container, onBack }) {
     host.innerHTML = '<table class="portal-table portal-detail-table"><tbody>' + cols.map((c) => {
       const tip = c.popup[l] ?? c.popup.en ?? '';
       const label = c[l] ?? c.en;
+      // The label carries its definition in data-tippy-content; tooltips.js turns it into a popup.
       return `<tr><th scope="row" class="portal-detail-key"><span data-tippy-content="${escapeAttr(tip)}">${escapeHtml(label)}</span></th>` +
              `<td class="portal-detail-value">${valueHtml(c)}</td></tr>`;
     }).join('') + '</tbody></table>';
@@ -39,6 +50,7 @@ export function createDetailView({ container, onBack }) {
     root,
     show(r) { row = r; render(); root.hidden = false; },
     hide() { row = null; host.innerHTML = ''; root.hidden = true; },
+    /** Redraw labels/tooltips after a language change (the row itself is requeried by the caller). */
     relabel() { render(); },
     get visible() { return !root.hidden; },
   };

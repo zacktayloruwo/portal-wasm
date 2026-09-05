@@ -1,17 +1,24 @@
-import { el } from './util.js';
+/**
+ * search_kw.js — "Search by Keyword" tab (port of R/mod_search_kw.R).
+ *
+ * A text box, a submit arrow, and one AND/OR toggle.  The text is only
+ * *committed* on Enter or the button, but the toggle is read live so flipping
+ * it re-filters immediately — both behaviours copied from the R module.
+ * Results and detail view are the same components the first tab uses; the
+ * only difference is that this tab shows the "Name of Census" column.
+ */
+import { el, staleGuard } from './util.js';
 import { query } from './db.js';
 import { ORDER_BY, buildKwWhere, tableFor } from './sql.js';
 import { lang } from './i18n.js';
-import { staleGuard } from './util.js';
 import { createResultsView } from './results.js';
 import { createDetailView } from './detail.js';
 
-// "Search by Keyword" tab (port of mod_search_kw.R).  The text is committed
-// on Enter / button click; the AND/OR toggle is read live.
 export function createKwSearch({ panel }) {
-  const state = { kw: '', page: 1, pageSize: 5 };
+  const state = { kw: '', page: 1, pageSize: 5 }; // kw = last committed search text
   const guard = staleGuard();
 
+  // ── DOM ──
   const input = el('input', { type: 'text', class: 'form-control portal-kw-input', id: 'kw-input', autocomplete: 'off' });
   const btn = el('button', { type: 'button', class: 'btn portal-btn-green portal-kw-search-btn', 'aria-label': 'Search', html: '&#10140;' });
   const toggle = el('input', { class: 's2-toggle', type: 'checkbox', role: 'switch', id: 'toggle-kw', 'aria-label': 'AND / OR' });
@@ -44,6 +51,7 @@ export function createKwSearch({ panel }) {
   });
   const detail = createDetailView({ container: body, onBack: closeDetail });
 
+  // Commit the text box (Enter or arrow button).
   function commit() {
     state.kw = input.value.trim();
     state.page = 1;
@@ -52,8 +60,10 @@ export function createKwSearch({ panel }) {
   }
   btn.addEventListener('click', commit);
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); commit(); } });
+  // The toggle is not part of the committed text: it re-runs the last search at once.
   toggle.addEventListener('change', () => { state.page = 1; refresh(); });
 
+  // Count + current page for the committed keyword (an empty keyword lists everything).
   async function refresh() {
     const isCurrent = guard.next();
     results.setLoading(true);
@@ -85,6 +95,7 @@ export function createKwSearch({ panel }) {
     results.show(true);
   }
 
+  /** Empty the box, reset the toggle to AND, show all rows (used on tab switch and language change). */
   function reset() {
     input.value = '';
     toggle.checked = false;

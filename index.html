@@ -1,4 +1,15 @@
 <!doctype html>
+<!--
+  Static shell for the Census Discovery Portal.
+
+  Everything inside the five <section class="portal-panel"> elements is built
+  by JavaScript (src/*.js); this file only provides the fixed frame: header
+  with the EN/FR switch, the tab bar, the panels, the footer, and the loading
+  overlay that covers the page until DuckDB-WASM and the data are ready.
+
+  Text marked data-i18n="key" is filled in from data/meta.json by src/i18n.js;
+  the English here is only a fallback shown before that runs.
+-->
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -7,6 +18,7 @@
   <link rel="icon" href="favicon.ico" />
 </head>
 <body>
+  <!-- Full-page overlay; src/main.js updates the status text and hides it once the first query returns. -->
   <div id="app-loading-overlay">
     <div class="portal-spinner"></div>
     <span id="app-loading-status">Loading…</span>
@@ -15,6 +27,7 @@
   <div class="portal-container">
     <header class="portal-header">
       <h2 class="portal-apptitle" data-i18n="apptitle">Census Discovery Portal</h2>
+      <!-- Language switch: unchecked = English (red), checked = French (blue). -->
       <div class="portal-lang">
         <span class="portal-lang-label">EN</span>
         <input type="checkbox" role="switch" id="language" aria-label="English / Français" />
@@ -22,6 +35,7 @@
       </div>
     </header>
 
+    <!-- Tab bar. data-tab is the URL hash the router (src/router.js) navigates to. -->
     <nav class="portal-tabs" role="tablist">
       <button type="button" role="tab" data-tab="search" data-i18n="search">Search by Controlled Vocabulary</button>
       <button type="button" role="tab" data-tab="search_kw" data-i18n="search_kw">Search by Keyword</button>
@@ -30,6 +44,7 @@
       <button type="button" role="tab" data-tab="about" data-i18n="about">About</button>
     </nav>
 
+    <!-- One panel per tab (id = "panel-" + data-tab). Each module appends its own DOM here. -->
     <main>
       <section class="portal-panel" id="panel-search" hidden></section>
       <section class="portal-panel" id="panel-search_kw" hidden></section>
@@ -39,6 +54,7 @@
     </main>
   </div>
 
+  <!-- Version strings come from R/utils_global.R via data/meta.json. -->
   <footer class="portal-footer">
     <span>App Version: <span id="footer-version"></span></span>
     <span>App Last Updated: <span id="footer-app-date"></span></span>

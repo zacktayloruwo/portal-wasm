@@ -1,14 +1,27 @@
+/**
+ * visualize.js — "Visualize" tab (port of R/mod_visualize.R).
+ *
+ * Draws one bar chart: number of records per year for a chosen attribute
+ * (e.g. Content type) and value within it (e.g. Census returns).  The numbers
+ * do not come from the database: they are pre-aggregated in the R project
+ * (viz_counts in app_data.RData) and exported to data/viz_counts.json as
+ *   { yearPub: { en: [[Year, attributeKey, value, Count], …], fr: […] },
+ *     yearCov: { … } }
+ * where yearPub counts by year of publication and yearCov by year covered.
+ *
+ * Plotly (≈380 KB gzipped) and the JSON are only loaded the first time the
+ * tab is opened.
+ */
 import { el, csvCell, downloadBlob } from './util.js';
 import { getMeta, lang, tr, colLabel } from './i18n.js';
 
-// "Visualize" tab (port of mod_visualize.R): one bar chart of record counts
-// by year for a chosen attribute/item, drawn from the pre-aggregated counts.
 export function createVisualize({ panel }) {
-  let Plotly = null;
-  let counts = null;
-  let ready = null;
+  let Plotly = null;   // set after the lazy import
+  let counts = null;   // parsed viz_counts.json
+  let ready = null;    // promise for the one-time load
   const state = { attr: '', item: '', time: 'itemYearsCovered' };
 
+  // ── DOM ──
   const attrSel = el('select', { id: 'viz-attr', class: 'form-control' });
   const itemSel = el('select', { id: 'viz-item', class: 'form-control', disabled: true });
   const radios = el('div', { class: 'portal-radio-group' });
@@ -26,10 +39,12 @@ export function createVisualize({ panel }) {
   ]);
   panel.append(header, el('div', { class: 'portal-body' }, [plotEl]));
 
+  // Options are ordered by their translated label, as sort(tr(...)) did in R.
   function sortedByLabel(keys) {
     return keys.map((k) => ({ key: k, label: colLabel(k) })).sort((a, b) => a.label.localeCompare(b.label, lang()));
   }
 
+  // Attribute dropdown: the seven columns listed in meta.viz_attrs.
   function fillAttr() {
     attrSel.innerHTML = '';
     attrSel.appendChild(el('option', { value: '' }, ['']));
@@ -38,6 +53,8 @@ export function createVisualize({ panel }) {
     }
   }
 
+  // Item dropdown: distinct values seen for that attribute (taken from the
+  // yearPub table regardless of the time axis, as the R code did).
   function fillItems() {
     itemSel.innerHTML = '';
     itemSel.appendChild(el('option', { value: '' }, ['']));
@@ -47,6 +64,7 @@ export function createVisualize({ panel }) {
     itemSel.disabled = false;
   }
 
+  // Time axis radios: year of publication vs year(s) covered (default).
   function fillRadios() {
     radios.innerHTML = '';
     for (const { key, label } of sortedByLabel(['itemYearPub', 'itemYearsCovered'])) {
@@ -61,6 +79,8 @@ export function createVisualize({ panel }) {
     dl.innerHTML = `<span>${tr('label_csv')}</span><span class="portal-dl-arrow" aria-hidden="true">&#8595;</span>`;
   }
 
+  // Rows for the current attribute/item/time selection, as objects.
+  // A null year (undated items) is shown as "N/A", as in R.
   function plotRows() {
     if (!counts || !state.attr || !state.item) return [];
     const src = state.time === 'itemYearPub' ? counts.yearPub : counts.yearCov;
@@ -68,6 +88,10 @@ export function createVisualize({ panel }) {
       .map((r) => ({ Year: r[0] ?? 'N/A', name: r[1], value: r[2], Count: r[3] }));
   }
 
+  // Redraw (or clear) the chart.  Styling follows the ggplot theme_bw() look
+  // of the original: portal-blue bars, bold blue title "Attribute | Item",
+  // vertical year labels, boxed axes.  The mode bar is trimmed to the PNG
+  // download button, at the same 1920×720 size.
   function draw() {
     const rows = plotRows();
     dl.disabled = !rows.length;
@@ -82,6 +106,7 @@ export function createVisualize({ panel }) {
       hovertemplate: '%{x}: %{y}<extra></extra>',
     }], {
       title: { text: `<b>${attrLabel} | ${state.item}</b>`, font: { family: 'Arial', size: 18, color: '#0b5394' }, x: 0.02 },
+      // Years are strings ("1870-71"); ggplot sorted them alphabetically, hence category ascending.
       xaxis: { title: { text: colLabel(state.time) }, type: 'category', categoryorder: 'category ascending', tickangle: -90, showline: true, mirror: true, linecolor: '#333', gridcolor: '#e5e5e5' },
       yaxis: { title: { text: tr('viz_yaxis') }, showline: true, mirror: true, linecolor: '#333', gridcolor: '#e5e5e5' },
       font: { family: 'Arial', size: 13 },
@@ -100,6 +125,8 @@ export function createVisualize({ panel }) {
     });
   }
 
+  // CSV of the plotted data with the same bilingual headers as the Shiny
+  // downloadHandler.  A BOM is prepended so Excel reads the accents correctly.
   function downloadCsv() {
     const rows = plotRows();
     if (!rows.length) return;
@@ -116,11 +143,12 @@ export function createVisualize({ panel }) {
   itemSel.addEventListener('change', () => { state.item = itemSel.value; draw(); });
   dl.addEventListener('click', downloadCsv);
 
+  /** Called by the router each time the tab is shown; loads Plotly + data once. */
   async function activate() {
     if (!ready) {
       ready = (async () => {
         const [mod, res] = await Promise.all([
-          import('plotly.js-basic-dist-min'),
+          import('plotly.js-basic-dist-min'), // separate chunk, fetched on demand
           fetch(`${import.meta.env.BASE_URL}data/viz_counts.json`, { cache: 'no-cache' }),
         ]);
         Plotly = mod.default ?? mod;
@@ -134,7 +162,8 @@ export function createVisualize({ panel }) {
   }
 
   document.addEventListener('langchange', () => {
-    // Values are language-specific; start over (the Shiny app said as much).
+    // Item values are language-specific, so start over (the Shiny
+    // instructions text warned that language could not be changed mid-plot).
     state.attr = ''; state.item = '';
     fillAttr(); fillItems(); fillRadios(); fillDownload();
     draw();

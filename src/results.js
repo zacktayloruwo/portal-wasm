@@ -1,11 +1,30 @@
+/**
+ * results.js — the paged results block shared by both search tabs.
+ *
+ * Layout (same as the Shiny app):
+ *   [ Search Results                       Show [5▾] rows ]
+ *   [ striped table; Title is a link that opens the detail view ]
+ *   [ ❮ Previous   Page 1 of 12 (57 results)   Next ❯ ]
+ *
+ * The table is plain HTML.  Searching, sorting and paging all happen in SQL
+ * (LIMIT/OFFSET), exactly as before — reactable was only ever a renderer.
+ * Which columns appear comes from meta.columns[].visible_results; the CV tab
+ * additionally hides itemCensusName (hideCensusName), as mod_search.R did.
+ */
 import { el, escapeHtml, joinList } from './util.js';
 import { accessLinksHtml } from './links.js';
-import { getMeta, lang, tr, colLabel, pageInfo } from './i18n.js';
+import { getMeta, tr, colLabel, pageInfo } from './i18n.js';
 import { PAGE_SIZES } from './sql.js';
 
-// Results block: header (title + "Show n rows"), striped table, pagination.
-// Plain HTML table; all search/sort/paging is done in SQL as before.
+/**
+ * @param container   element to append the block to
+ * @param hideCensusName  drop the "Name of Census" column
+ * @param onOpen(row)     title clicked
+ * @param onPage(±1)      Previous / Next clicked
+ * @param onPageSize(n)   rows-per-page changed
+ */
 export function createResultsView({ container, hideCensusName = false, onOpen, onPage, onPageSize }) {
+  // ── Header row: title + "Show n rows" pill ──
   const title = el('h3', { 'data-i18n': 'title_results' });
   const sizeSelect = el('select', { class: 'portal-page-size-select', 'aria-label': 'rows per page' },
     PAGE_SIZES.map((n) => el('option', { value: n, selected: n === 5 }, [String(n)])));
@@ -20,12 +39,14 @@ export function createResultsView({ container, hideCensusName = false, onOpen, o
     ]),
   ]);
 
+  // ── Table + spinner overlay (shown via the .is-loading class) ──
   const tableHost = el('div', { class: 'portal-table-host' });
   const wrapper = el('div', { class: 'portal-results-wrapper' }, [
     el('div', { class: 'portal-results-spinner-overlay' }, [el('div', { class: 'portal-spinner' })]),
     tableHost,
   ]);
 
+  // ── Pagination ──
   const prev = el('button', { class: 'btn btn-default btn-sm', type: 'button', 'data-i18n': 'prev' });
   const next = el('button', { class: 'btn btn-default btn-sm', type: 'button', 'data-i18n': 'next' });
   const info = el('span', { class: 'portal-page-info' });
@@ -36,12 +57,14 @@ export function createResultsView({ container, hideCensusName = false, onOpen, o
   const root = el('div', { class: 'portal-results' }, [header, wrapper, pager]);
   container.appendChild(root);
 
-  let last = null;
+  let last = null; // most recent render() arguments, replayed by relabel()
 
   function columns() {
     return getMeta().columns.filter((c) => c.visible_results && !(hideCensusName && c.key === 'itemCensusName'));
   }
 
+  // One cell.  Everything is escaped except the link chips, which are built
+  // from URL/label lists by links.js.
   function cellHtml(c, row) {
     if (c.key === 'access_link') return accessLinksHtml(row.access_urls, row.access_labels);
     if (c.key === 'itemTitle') {
@@ -50,9 +73,11 @@ export function createResultsView({ container, hideCensusName = false, onOpen, o
     return escapeHtml(c.list ? joinList(row[c.key]) : row[c.key]);
   }
 
+  /** Draw one page.  rows = current page only; total = full match count. */
   function render({ rows, total, page, pageSize }) {
     last = { rows, total, page, pageSize };
     const cols = columns();
+    // Per-column classes (col-itemTitle etc.) carry the width hints in base.css.
     const thead = `<thead><tr>${cols.map((c) => `<th class="col-${c.key}">${escapeHtml(colLabel(c.key))}</th>`).join('')}</tr></thead>`;
     let tbody;
     if (!rows.length) {
@@ -63,6 +88,7 @@ export function createResultsView({ container, hideCensusName = false, onOpen, o
       ).join('') + '</tbody>';
     }
     tableHost.innerHTML = `<table class="portal-table">${thead}${tbody}</table>`;
+    // Title links: look the row up by its index on this page and hand it back.
     tableHost.querySelectorAll('a.portal-title-link').forEach((a) => {
       a.addEventListener('click', (e) => {
         e.preventDefault();
@@ -82,6 +108,7 @@ export function createResultsView({ container, hideCensusName = false, onOpen, o
     root,
     render,
     setLoading(on) { wrapper.classList.toggle('is-loading', on); },
+    /** Re-render the last page in the current language (headers, page info). */
     relabel() { if (last) render(last); },
     show(v) { root.hidden = !v; },
   };

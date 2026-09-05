@@ -1,7 +1,14 @@
-// Small shared helpers.
+/**
+ * util.js — small helpers with no app-specific state.
+ */
 
 const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 
+/**
+ * Escape text for insertion into HTML.  Applied to every database value the
+ * app renders (titles such as "<25 Years by Age" would otherwise vanish into
+ * the DOM as a tag).  Only the rebuilt link chips are inserted as raw HTML.
+ */
 export function escapeHtml(v) {
   if (v == null) return '';
   return String(v).replace(/[&<>"']/g, (c) => HTML_ESCAPES[c]);
@@ -9,7 +16,11 @@ export function escapeHtml(v) {
 
 export const escapeAttr = escapeHtml;
 
-// DuckDB-WASM returns LIST columns as Arrow vectors; normalise to a JS array.
+/**
+ * DuckDB-WASM returns LIST columns as Arrow vectors (not JS arrays).  Accept
+ * whatever shape arrives — null, array, Arrow vector, iterable, scalar — and
+ * return a plain array.
+ */
 export function listToArray(v) {
   if (v == null) return [];
   if (Array.isArray(v)) return v;
@@ -18,12 +29,17 @@ export function listToArray(v) {
   return [v];
 }
 
-// Comma-join a list cell the way the Shiny app did (paste(x, collapse = ", ")).
+/** Comma-join a list cell the way the Shiny app did: paste(x, collapse = ", "). */
 export function joinList(v) {
   return listToArray(v).filter((x) => x != null).join(', ');
 }
 
-// Returns a function that hands out tokens; only the most recent token is current.
+/**
+ * Guard against out-of-order async results.  Each call to next() returns an
+ * isCurrent() function that is true only until next() is called again, so a
+ * slow query started before a newer one can detect that it is stale and skip
+ * rendering.  This replaces Shiny's reactive invalidation.
+ */
 export function staleGuard() {
   let latest = 0;
   return {
@@ -34,6 +50,7 @@ export function staleGuard() {
   };
 }
 
+/** Trigger a client-side file download from a string (used for the CSV export). */
 export function downloadBlob(content, filename, type = 'text/plain') {
   const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);
@@ -44,11 +61,18 @@ export function downloadBlob(content, filename, type = 'text/plain') {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+/** Quote a CSV field only when it needs it (comma, quote, or newline). */
 export function csvCell(v) {
   const s = v == null ? '' : String(v);
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
+/**
+ * Tiny element builder: el('div', {class: 'x', onclick: fn}, [child, 'text']).
+ * Attribute rules: `class` → className, `html` → innerHTML, `text` → textContent,
+ * `on<event>` with a function → addEventListener, `true` → boolean attribute,
+ * null/false → omitted.
+ */
 export function el(tag, attrs = {}, children = []) {
   const node = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {
