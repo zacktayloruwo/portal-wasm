@@ -30,7 +30,6 @@ const STATIC = {
   no_entries: { en: 'No entries found', fr: 'Aucune entrée trouvée' },
   // summarised list cells
   more_n: { en: '+{n} more', fr: '+{n} autres' },
-  all_years: { en: 'All {n} years', fr: 'Les {n} années' },
   show_less: { en: 'Show less', fr: 'Moins' },
   short_itemYearsCovered: { en: 'Years Covered', fr: 'Années couvertes' },
   link_n: { en: 'Link {n}', fr: 'Lien {n}' },

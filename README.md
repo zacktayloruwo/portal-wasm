@@ -186,7 +186,7 @@ line; Census Year(s) Covered by Item is shortened to "Years Covered" in the
 table header only. Title and Name of Census share the same width and wrap.
 
 Long list cells are summarised so that one record cannot fill the screen:
-years covered show as a range with an "All 66 years" button, and other lists
+years covered show as a range with "+64 more" for the years in between, and other lists
 show their first two values and "+19 more" (formats show up to five). The
 buttons expand the cell in place. Every value is HTML-escaped. `links.js`
 rebuilds the Links column as `<a class="accessbutton">domain</a>` chips side
@@ -224,7 +224,10 @@ the tab.
 [census-recensement/portal](https://github.com/census-recensement/portal)
 repository at view time, exactly as the Shiny app did, renders them with
 `marked`, gives every `h2`/`h3` an id, and builds the sticky table of
-contents on the right (a port of `inject_toc()` in `R/mod_markdown.R`).
+contents pinned to the right (a port of `inject_toc()` in `R/mod_markdown.R`).
+Text under each heading is grouped and flows into two columns when the page
+is wide enough; in the field descriptions, "Definition", "Notes" and "Values"
+become small labels with their text directly underneath.
 Rendered pages are cached per language for the session. TOC links scroll
 within the page rather than changing the hash, because the hash is the tab
 router's state. If the fetch fails, a bilingual "content unavailable" message

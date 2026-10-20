@@ -84,7 +84,6 @@
 .xp-btn:hover { text-decoration: underline; }
 .xp-btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; border-radius: 2px; }
 .yr-range, .yr { white-space: nowrap; }
-.xp-years .xp-short .xp-btn { display: block; }   /* "All 67 years" under the range */
 
 /* ── Narrow screens: results as a list of records ───────────────────────── */
 .portal-list { border-top: 2px solid var(--rule-strong); }
@@ -100,7 +99,6 @@
 /* Details as wrapping label–value items, so each pair stays together. */
 .portal-rec-meta { margin: 0; grid-column: 1; display: flex; flex-wrap: wrap; gap: 2px 18px; color: var(--muted); font-size: 13.5px; }
 .portal-rec-meta i { font-style: normal; color: var(--faint); margin-right: 3px; }
-.portal-rec-meta .xp-years .xp-short .xp-btn { display: inline; margin-left: 6px; }
 .portal-rec-tags { margin: 0; grid-column: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .portal-rec-tags:empty { display: none; }
 .portal-rec-tags .xp-short, .portal-rec-tags .xp-full { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; }
@@ -194,32 +192,65 @@
 }
 
 /* ── Documentation / About ──────────────────────────────────────────────── */
+/* Text on the left; the table of contents in a fixed-width column pinned to
+   the right edge, staying in view while the text scrolls. */
 .portal-markdown-layout {
-  display: flex;
-  align-items: flex-start;
-  gap: 32px;
-  padding: 28px var(--gutter) 40px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  gap: 48px;
+  align-items: start;
+  padding: 24px var(--gutter) 40px;
   background: white;
 }
-.portal-markdown-body { flex: 1; min-width: 0; max-width: 80ch; color: var(--ink); font-size: 15px; line-height: 1.55; }
+.portal-markdown-body { min-width: 0; color: var(--ink); font-size: 15px; line-height: 1.5; }
 .portal-markdown-body h2 {
+  font-size: 24px;
   color: var(--blue);
   border-bottom: 2px solid var(--blue);
   padding-bottom: 6px;
-  margin-top: 28px;
-  margin-bottom: 12px;
+  margin: 28px 0 12px;
 }
-.portal-markdown-body h3 { color: var(--blue); margin-top: 18px; margin-bottom: 8px; }
-.portal-markdown-body h4 { color: #1a6bbf; font-size: 0.95em; margin-top: 10px; margin-bottom: 4px; }
+.portal-markdown-body > h2:first-child { margin-top: 0; }
+.portal-markdown-body h3 {
+  font-size: 18px;
+  color: var(--blue);
+  margin: 18px 0 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule);
+}
+.portal-markdown-body h2 + h3 { border-top: 0; padding-top: 0; }
+
+/* Text under a heading: two columns once each can be at least 26em wide,
+   for blocks long enough to fill them (marked .md-split in markdown.js). */
+.md-cols.md-split { column-width: 26em; column-count: 2; column-gap: 44px; }
+.md-cols { max-width: 90ch; }
+.md-cols.md-split { max-width: none; }
+.md-cols p { margin: 0 0 8px; }
+.md-cols ul, .md-cols ol { margin: 0 0 8px; padding-left: 1.2em; }
+.md-cols li { margin: 0 0 3px; }
+.md-cols li > p { margin: 0; }
+
+/* Field descriptions: "Definition", "Notes", "Values" as small labels with
+   their text directly underneath. */
+.md-item { margin: 0 0 8px; }
+.md-item h4 {
+  margin: 0 0 2px;
+  font: 700 11.5px/1.4 var(--font-ui);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+  break-after: avoid;
+}
+.md-item > :last-child { margin-bottom: 0; }
+
 .portal-markdown-body img { max-width: 100%; }
 .portal-markdown-body table { border-collapse: collapse; }
 .portal-markdown-body th, .portal-markdown-body td { border: 1px solid #ddd; padding: 4px 8px; }
 
 .portal-toc {
-  flex: 0 0 220px;
   position: sticky;
-  top: 24px;
-  max-height: calc(100vh - 48px);
+  top: 16px;
+  max-height: calc(100vh - 32px);
   overflow-y: auto;
 }
 .portal-toc-title {
@@ -246,6 +277,6 @@
 .portal-toc-h3 { margin-left: 14px; }
 .portal-md-loading, .portal-md-error { padding: 24px var(--gutter); color: var(--faint); }
 @media (max-width: 800px) {
-  .portal-markdown-layout { flex-direction: column-reverse; }
-  .portal-toc { position: static; max-height: none; flex-basis: auto; width: 100%; }
+  .portal-markdown-layout { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .portal-toc { position: static; max-height: none; order: -1; }
 }
