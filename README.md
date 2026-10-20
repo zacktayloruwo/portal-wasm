@@ -66,9 +66,24 @@ The DuckDB-WASM engine itself is the largest download (about 6.8 MB). `db.js`
 loads it from jsDelivr, pinned to the installed package version, because
 jsDelivr serves it Brotli-compressed (about 1 MB smaller than GitHub Pages'
 gzip) and lets browsers cache it for a year. If jsDelivr cannot be reached,
-the self-hosted copy built into `dist/assets` is used instead. When it first
-reads a parquet file the engine also downloads its parquet extension (about
-650 KB) from `extensions.duckdb.org`.
+the self-hosted copy built into `dist/assets` is used instead.
+
+Reading parquet also needs DuckDB's parquet extension, which is not built
+into the engine. Rather than letting the engine fetch it from
+`extensions.duckdb.org`, the site serves its own copy from
+`public/duckdb-ext/<DuckDB version>/<wasm_eh|wasm_mvp>/` (the path layout
+DuckDB expects), and `db.js` points DuckDB's extension repository there and
+loads it as soon as the engine starts. These are DuckDB's own signed files,
+committed to the repo. After upgrading `@duckdb/duckdb-wasm`, refresh them
+with
+
+```bash
+node scripts/fetch-duckdb-ext.mjs v1.4.3   # the new DuckDB version, from SELECT version()
+```
+
+If the copy for the running DuckDB version is missing, `db.js` logs a
+console warning naming the command to run and falls back to
+`extensions.duckdb.org`, so the app keeps working.
 
 ### Start-up sequence
 

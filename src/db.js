@@ -76,6 +76,28 @@ async function startEngine(bundles, crossOrigin) {
   }
 }
 
+/**
+ * Reading parquet needs DuckDB's parquet extension, which is not built into
+ * the wasm engine.  By default DuckDB fetches it from extensions.duckdb.org;
+ * pointing the extension repository at our own public/duckdb-ext (filled by
+ * scripts/fetch-duckdb-ext.mjs) serves the same signed file from this site.
+ * If our copy is missing (e.g. after a DuckDB upgrade without re-running the
+ * script), fall back to DuckDB's server so the app still works.
+ */
+async function loadParquetExtension() {
+  const repo = new URL(`${import.meta.env.BASE_URL}duckdb-ext`, location.href).href;
+  await conn.query(`SET custom_extension_repository = '${repo}'`);
+  try {
+    await conn.query('LOAD parquet');
+  } catch (err) {
+    const [{ v }] = (await conn.query('SELECT version() AS v')).toArray().map((r) => r.toJSON());
+    console.warn(`No self-hosted parquet extension for DuckDB ${v}; using extensions.duckdb.org. `
+      + `Run: node scripts/fetch-duckdb-ext.mjs ${v}`, err);
+    await conn.query('RESET custom_extension_repository');
+    await conn.query('LOAD parquet');
+  }
+}
+
 /** Start the worker, instantiate the wasm module, open a connection (once). */
 export function initDb() {
   if (!engine) {
@@ -89,6 +111,7 @@ export function initDb() {
       // COUNT(*) is a BIGINT; ask DuckDB to hand it back as a JS number, not a BigInt.
       await db.open({ query: { castBigIntToDouble: true } });
       conn = await db.connect();
+      await loadParquetExtension();
     })().catch((err) => { engine = null; throw err; });
   }
   return engine;
