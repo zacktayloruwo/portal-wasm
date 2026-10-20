@@ -1,9 +1,12 @@
 /**
- * facets.js — one controlled-vocabulary filter: label + multi-select + AND/OR toggle.
+ * facets.js — one controlled-vocabulary filter, laid out as a single row:
  *
- * Reproduces filter_row() from R/mod_search.R.  The multi-select is Tom Select
- * (the successor of the selectize.js widget Shiny used); the toggle is the
- * same custom-styled checkbox (.s2-toggle) as before.
+ *   Field name (i)   [ multi-select ..................... ]   [ All | Any ]
+ *
+ * The multi-select is Tom Select (the successor of the selectize.js widget the
+ * Shiny app used).  All | Any replaces the old orange/green AND/OR switch:
+ * All (the default) keeps items matching every selected value, Any keeps
+ * items matching at least one.
  *
  * When meta.json has a translation named help_<key> (rows in
  * prep/interface_elements.xlsx), an info glyph follows the field name and
@@ -26,22 +29,45 @@ const INFO_ICON =
   '<rect x="7.25" y="7" width="1.5" height="4.6" rx="0.75" fill="currentColor"/>' +
   '<circle cx="8" cy="4.7" r="1" fill="currentColor"/></svg>';
 
+/**
+ * Two-button All | Any control, shared with the keyword tab.
+ * @param onChange  called when the user switches between All and Any
+ * @param label()   returns the group's accessible name (re-read on language change)
+ */
+export function createAllAny({ onChange, label }) {
+  const all = el('button', { type: 'button', 'data-i18n': 'all', 'aria-pressed': 'true' });
+  const any = el('button', { type: 'button', 'data-i18n': 'any', 'aria-pressed': 'false' });
+  const group = el('div', { class: 'portal-allany', role: 'group' }, [all, any]);
+  let isOr = false;
+  const set = (v, notify) => {
+    isOr = v;
+    all.setAttribute('aria-pressed', String(!v));
+    any.setAttribute('aria-pressed', String(v));
+    if (notify) onChange();
+  };
+  all.addEventListener('click', () => { if (isOr) set(false, true); });
+  any.addEventListener('click', () => { if (!isOr) set(true, true); });
+  const relabel = () => group.setAttribute('aria-label', label());
+  relabel();
+  document.addEventListener('langchange', relabel);
+  return { el: group, isOr: () => isOr, reset: () => set(false, false) };
+}
+
 // Field name plus, when help text exists, the info glyph and its tooltip.
 function labelWithHelp(key, label) {
-  const row = el('div', { class: 'portal-label-row' }, [label]);
+  const wrap = el('div', { class: 'portal-field-label' }, [label]);
   const helpKey = `help_${key}`;
-  if (!hasTr(helpKey)) return row;
+  if (!hasTr(helpKey)) return wrap;
 
   const info = el('button', { type: 'button', class: 'portal-info', html: INFO_ICON });
-  row.appendChild(info);
+  wrap.appendChild(info);
   // Hover or keyboard focus shows it; a click keeps it open until the next
   // click elsewhere, which is also how it works on touch screens.
   const tip = tippy(info, {
     content: tr(helpKey),
     trigger: 'mouseenter focus click',
-    placement: 'right',
+    placement: 'top',
     maxWidth: 320,
-    theme: 'portal-light',
     appendTo: () => document.body,
   });
   const relabel = () => {
@@ -50,30 +76,23 @@ function labelWithHelp(key, label) {
   };
   relabel();
   document.addEventListener('langchange', relabel);
-  return row;
+  return wrap;
 }
 
 export function createFacet({ key, container, onChange }) {
   const selectId = `facet-${key}`;
-  const toggleId = `toggle-${key}`;
 
   // Tom Select creates its own text input with id "<selectId>-ts-control";
   // pointing the label at it keeps the widget accessible.
   const label = el('label', { class: 'portal-label', for: `${selectId}-ts-control`, 'data-i18n-col': key });
   const select = el('select', { id: selectId, multiple: true });
-  const toggle = el('input', { class: 's2-toggle', type: 'checkbox', role: 'switch', id: toggleId, 'aria-label': 'AND / OR' });
+  const mode = createAllAny({ onChange: () => onChange(key), label: () => tr('match_mode', { field: colLabel(key) }) });
 
-  const row = el('div', { class: 's2-filter-row' }, [
-    el('div', { class: 's2-filter-input' }, [labelWithHelp(key, label), select]),
-    el('div', { class: 's2-toggle-wrap' }, [
-      el('div', { class: 's2-toggle-labels' }, [
-        el('span', { class: 's2-and-label', 'data-i18n': 'and' }),
-        el('span', { class: 's2-or-label', 'data-i18n': 'or' }),
-      ]),
-      toggle,
-    ]),
-  ]);
-  container.appendChild(row);
+  container.appendChild(el('div', { class: 'portal-field' }, [
+    labelWithHelp(key, label),
+    el('div', { class: 'portal-field-input' }, [select]),
+    mode.el,
+  ]));
 
   const ts = new TomSelect(select, {
     plugins: ['remove_button'], // small × on each chip
@@ -82,14 +101,13 @@ export function createFacet({ key, container, onChange }) {
     closeAfterSelect: false,    // keep the list open for multi-picking, like selectize
     onChange: () => onChange(key),
   });
-  toggle.addEventListener('change', () => onChange(key));
 
   return {
     key,
     /** Currently selected values (array of strings). */
     getSelected: () => ts.getValue(),
-    /** true = OR (checked, green), false = AND (unchecked, orange). */
-    isOr: () => toggle.checked,
+    /** true = Any (list_has_any), false = All (list_has_all). */
+    isOr: () => mode.isOr(),
     /**
      * Replace the option list after a cascade query.  clearOptions() removes
      * only the *unselected* options, so current selections survive; the
@@ -101,10 +119,10 @@ export function createFacet({ key, container, onChange }) {
       ts.addOptions(values.map((v) => ({ value: v, text: v })));
       ts.refreshOptions(false);
     },
-    /** Deselect everything silently (no onChange) and reset the toggle to AND. */
+    /** Deselect everything silently (no onChange) and reset to All. */
     clear() {
       ts.clear(true);
-      toggle.checked = false;
+      mode.reset();
     },
     setDisabled(d) { if (d) ts.disable(); else ts.enable(); },
   };

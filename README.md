@@ -83,15 +83,15 @@ page.
 
 ```
 src/
-  main.js        boot sequence, language toggle, cross-tab reset, ?selftest
+  main.js        boot sequence, EN | FR switch, cross-tab reset, ?selftest
   db.js          DuckDB-WASM worker, ensureTable(lang), query(sql, params)
   sql.js         WHERE-clause builders, ORDER BY, tokeniser, accent folding
   i18n.js        tr(), colLabel(), applyStatic(), 'langchange' event
   router.js      hash ⇄ tab, panel visibility
-  facets.js      one facet: label + Tom Select multi-select + AND/OR toggle
+  facets.js      one facet row: label + Tom Select multi-select + All | Any
   search_cv.js   controlled-vocabulary tab controller (cascade + paging)
   search_kw.js   keyword tab controller
-  results.js     results table, page-size selector, pagination
+  results.js     results toolbar, table or record list, summarised cells, paging
   detail.js      selected-record table with tooltip labels
   links.js       rebuilds the link chips from access_urls / access_labels
   tooltips.js    tippy.js initialisation
@@ -113,19 +113,20 @@ the logic that spans files.
 
 ### Search by Controlled Vocabulary
 
-Five facets, each a multi-select with an AND/OR toggle, laid out in two
-columns: Subject, Name of Census and Census Year(s) Covered by Item on the
-left; Geographic Units and Content Type in a narrower column on the right.
+Five facets, each a row with the field name, a multi-select and an
+All | Any control, laid out in two columns: Subject, Name of Census and
+Census Year(s) Covered by Item on the left; Geographic Units and Content Type
+in a narrower column on the right.
 An info glyph after a field name shows that field's definition on hover or
 click; the text comes from `help_<field>` rows in
 `prep/interface_elements.xlsx`, and a field without such a row gets no glyph.
 `sql.buildCvWhere()` turns the selections into one `WHERE` clause:
 
 - Facets are always combined with `AND`.
-- Within a facet, the toggle decides how several selected values combine.
+- Within a facet, All | Any decides how several selected values combine.
   Four of the five columns are lists, so the clause is
-  `list_has_all(col, [v1, v2])` (AND, toggle off) or
-  `list_has_any(col, [v1, v2])` (OR, toggle on). A single value always uses
+  `list_has_all(col, [v1, v2])` (All, the default) or
+  `list_has_any(col, [v1, v2])` (Any). A single value always uses
   `list_has_any`. Name of Census is a scalar column and uses `IN (…)`.
 - Values are bound as prepared-statement parameters (`?`), never spliced into
   the SQL text. Column and table names come from fixed lists.
@@ -140,7 +141,7 @@ at once and waits for all of them:
 | `SELECT COUNT(*) …` | the "Page x of y (n results)" text |
 | `SELECT * … ORDER BY … LIMIT n OFFSET m` | the visible page |
 
-Paging (Previous / Next / rows per page) re-runs only the last two.
+Paging (‹ › and rows per page) re-runs only the last two.
 
 Results are sorted by the first entry in Census Year(s) Covered by Item,
 then by title, with
@@ -153,8 +154,8 @@ them. This replaces Shiny's reactive invalidation.
 
 ### Search by Keyword
 
-The text box is committed on Enter or the arrow button; the AND/OR toggle is
-read live, so flipping it re-runs the last search immediately.
+The text box is committed on Enter or the Search button; All | Any is read
+live, so switching it re-runs the last search immediately.
 
 `sql.tokenise()` splits the text in two passes: anything in quotes
 (`"…"`, `'…'`, `«…»`) is one phrase; the rest is split on spaces and commas.
@@ -176,19 +177,31 @@ or ranking; this is a substring match, as in the R app.
 
 ### Results and detail view
 
-`results.js` renders a plain HTML table for the current page. Columns are the
+`results.js` draws the current page under a toolbar that shows the record
+count, the sort order, rows per page (25 by default) and paging; a second
+pager follows the results when there is more than one page. Columns are the
 ones flagged `visible_results` in `prep/namestable.xlsx` (passed through
-`meta.json`), and both search tabs show the same columns. Title and Name of
-Census share the same width and wrap. List cells are
-comma-joined, every value is HTML-escaped, and the Links column is rebuilt by
-`links.js` as `<a class="accessbutton" target="_blank">domain</a>` chips.
+`meta.json`), and both search tabs show the same columns. Headers stay on one
+line; Census Year(s) Covered by Item is shortened to "Years Covered" in the
+table header only. Title and Name of Census share the same width and wrap.
+
+Long list cells are summarised so that one record cannot fill the screen:
+years covered show as a range with an "All 66 years" button, and other lists
+show their first two values and "+19 more" (formats show up to five). The
+buttons expand the cell in place. Every value is HTML-escaped. `links.js`
+rebuilds the Links column as `<a class="accessbutton">domain</a>` chips side
+by side; several links to the same site share one chip with a count, which
+opens to list them.
+
+Below 900 px wide the table becomes a list of records: the title, the link
+chips, one wrapping line of details and the subject tags.
 
 Clicking a title runs `SELECT * FROM inventory_<lang> WHERE id = ?` and
 `detail.js` swaps the results for a two-column table: one row for every
 column flagged `visible_detail` that has a tooltip definition (25 fields), in
 database order. The field label carries its definition in
 `data-tippy-content`, which `tooltips.js` turns into a tippy.js popup. The
-green "Back to Results" button restores the table without re-querying.
+"Back to Results" button restores the results without re-querying.
 
 ### Visualize
 
@@ -242,10 +255,16 @@ Intentional:
   now-meaningless selections.
 - Link hrefs are the raw URLs from `itemAccess`; the old pre-rendered HTML had
   URL-decoded them.
-- Row striping and hover highlight are done in CSS instead of reactable.
+- Row hover highlight is done in CSS instead of reactable.
+- The layout was compacted after a design review: one masthead for title,
+  tabs and language; field labels beside their boxes with All | Any in place
+  of the AND/OR switches; a results toolbar; summarised list cells; 25 rows
+  per page by default; one accent colour; the footer at the end of the page.
+- Results are sorted by the first year covered rather than by year of
+  publication.
 
 Unchanged: SQL semantics (checked by `prep_db.R` on every run and by the
-`?selftest` page), sort order, page sizes, tooltip text, chart data.
+`?selftest` page), page-size options, tooltip text, chart data.
 
 ## Update the data
 

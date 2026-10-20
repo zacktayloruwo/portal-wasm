@@ -10,15 +10,33 @@
  *   - data-i18n="key" (or data-i18n-col="column") attributes on static HTML,
  *     refreshed by applyStatic() whenever the language changes.
  * A 'langchange' CustomEvent on document lets the tab modules re-query.
+ * Strings may carry {name} placeholders, filled by tr(key, { name: value }).
  */
 
 const STORAGE_KEY = 'portal-lang';
 const STATIC = {
-  and: { en: 'AND', fr: 'ET' },
-  or: { en: 'OR', fr: 'OU' },
+  // All / Any control (was the AND / OR switch)
+  all: { en: 'All', fr: 'Tous' },
+  any: { en: 'Any', fr: 'Au moins un' },
+  match_mode: { en: '{field}: match all or any selected values', fr: '{field} : toutes les valeurs choisies ou au moins une' },
+  // results toolbar and pager
+  record: { en: 'record', fr: 'enregistrement' },
+  records: { en: 'records', fr: 'enregistrements' },
+  sorted_note: { en: 'sorted by first census year covered', fr: 'triés par première année de recensement couverte' },
+  rows: { en: 'Rows', fr: 'Lignes' },
+  page_of: { en: '{page} of {pages}', fr: '{page} de {pages}' },
+  prev_page: { en: 'Previous page', fr: 'Page précédente' },
+  next_page: { en: 'Next page', fr: 'Page suivante' },
   no_entries: { en: 'No entries found', fr: 'Aucune entrée trouvée' },
-  prev: { en: '❮ Previous', fr: '❮ Précédent' },
-  next: { en: 'Next ❯', fr: 'Suivant ❯' },
+  // summarised list cells
+  more_n: { en: '+{n} more', fr: '+{n} autres' },
+  all_years: { en: 'All {n} years', fr: 'Les {n} années' },
+  show_less: { en: 'Show less', fr: 'Moins' },
+  short_itemYearsCovered: { en: 'Years Covered', fr: 'Années couvertes' },
+  link_n: { en: 'Link {n}', fr: 'Lien {n}' },
+  // keyword box
+  keywords: { en: 'Keywords', fr: 'Mots-clés' },
+  search_btn: { en: 'Search', fr: 'Rechercher' },
   loading: { en: 'Loading', fr: 'Chargement' },
   unavailable: {
     en: 'Content temporarily unavailable. Please check your internet connection.',
@@ -53,12 +71,16 @@ export const lang = () => current;
 export const getMeta = () => meta;
 
 /** Translate an interface string; falls back to English, then to the key itself. */
-export function tr(key) {
+export function tr(key, vars) {
   const e = meta?.translation?.[key];
-  if (e) return e[current] ?? e.en ?? key;
-  const s = STATIC[key];
-  if (s) return s[current] ?? s.en;
-  return key;
+  let text = e ? (e[current] ?? e.en ?? key) : STATIC[key] ? (STATIC[key][current] ?? STATIC[key].en) : key;
+  if (vars) text = text.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m));
+  return text;
+}
+
+/** A number in the current language's style: 23,351 in English, 23 351 in French. */
+export function fmtNumber(n) {
+  return Number(n).toLocaleString(current === 'fr' ? 'fr-CA' : 'en-CA');
 }
 
 /** True when meta.json carries a translation for this key (e.g. optional help text). */
@@ -70,13 +92,6 @@ export function hasTr(key) {
 export function colLabel(key) {
   const c = meta?.columns?.find((x) => x.key === key);
   return c ? c[current] ?? c.en : key;
-}
-
-/** "Page 1 of 12 (57 results)" — wording copied from mod_search.R. */
-export function pageInfo(page, pages, total) {
-  return current === 'fr'
-    ? `Page ${page} de ${pages} (${total} résultats)`
-    : `Page ${page} of ${pages} (${total} results)`;
 }
 
 /**

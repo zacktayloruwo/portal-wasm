@@ -88,9 +88,10 @@ async function boot() {
   document.getElementById('footer-db-date').textContent = meta.db_date;
   document.getElementById('footer-app-date').textContent = meta.app_date;
 
-  // The EN/FR switch: unchecked = English, checked = French (same as Shiny).
-  const langToggle = document.getElementById('language');
-  langToggle.checked = lang() === 'fr';
+  // The EN | FR control in the masthead: the pressed button is the current language.
+  const langButtons = [...document.querySelectorAll('.portal-lang button[data-lang]')];
+  const markLang = () => langButtons.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.lang === lang())));
+  markLang();
 
   // 2. Build the tab panels.  Each factory appends its own DOM to the empty
   //    <section> in index.html and returns a small controller object.
@@ -125,11 +126,11 @@ async function boot() {
     if (tab === 'about') about.load();
   });
 
-  // Language toggle: make sure the other table exists before announcing the
+  // Language switch: make sure the other table exists before announcing the
   // change, so the modules' 'langchange' handlers can query it immediately.
-  langToggle.addEventListener('change', async () => {
-    const next = langToggle.checked ? 'fr' : 'en';
-    langToggle.disabled = true;
+  async function switchLang(next) {
+    if (next === lang()) return;
+    langButtons.forEach((b) => { b.disabled = true; });
     showOverlay(true);
     try {
       await loadLang(next);
@@ -140,13 +141,14 @@ async function boot() {
       if (tab === 'about') about.load();
     } catch (err) {
       console.error(err);
-      langToggle.checked = lang() === 'fr'; // roll the switch back
       alert(String(err));
     } finally {
-      langToggle.disabled = false;
+      markLang();
+      langButtons.forEach((b) => { b.disabled = false; });
       showOverlay(false);
     }
-  });
+  }
+  langButtons.forEach((b) => b.addEventListener('click', () => switchLang(b.dataset.lang)));
 
   if (new URLSearchParams(location.search).has('selftest')) selftest().catch(console.error);
 }

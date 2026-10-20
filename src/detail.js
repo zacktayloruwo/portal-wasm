@@ -16,7 +16,7 @@ import { getMeta, lang, tr } from './i18n.js';
 import { initTippy } from './tooltips.js';
 
 export function createDetailView({ container, onBack }) {
-  const back = el('button', { class: 'btn btn-default portal-btn-green portal-back-btn', type: 'button' });
+  const back = el('button', { class: 'btn portal-btn-primary portal-back-btn', type: 'button' });
   back.addEventListener('click', onBack);
   const title = el('h3', { 'data-i18n': 'title_details' });
   const host = el('div', { class: 'portal-detail-host' });

@@ -12,7 +12,7 @@
  * Plotly (≈380 KB gzipped) and the JSON are only loaded the first time the
  * tab is opened.
  */
-import { el, csvCell, downloadBlob } from './util.js';
+import { el, csvCell, downloadBlob, escapeHtml } from './util.js';
 import { getMeta, lang, tr, colLabel } from './i18n.js';
 
 export function createVisualize({ panel }) {
@@ -25,17 +25,19 @@ export function createVisualize({ panel }) {
   const attrSel = el('select', { id: 'viz-attr', class: 'form-control' });
   const itemSel = el('select', { id: 'viz-item', class: 'form-control', disabled: true });
   const radios = el('div', { class: 'portal-radio-group' });
-  const dl = el('button', { type: 'button', class: 'btn portal-btn-green portal-dl-btn', disabled: true });
+  const dl = el('button', { type: 'button', class: 'btn portal-btn-primary portal-dl-btn', disabled: true });
   const plotEl = el('div', { class: 'portal-plot', id: 'viz-plot' });
 
-  const header = el('div', { class: 'portal-filter-header portal-filter-header-viz' }, [
-    el('div', { class: 'portal-col-4' }, [el('div', { class: 'portal-instructions portal-instructions-sm', 'data-i18n': 'viz_top', 'data-i18n-html': '' })]),
-    el('div', { class: 'portal-col-6 portal-viz-selectors' }, [
-      el('div', { class: 'portal-field' }, [el('label', { class: 'portal-label', for: 'viz-attr', 'data-i18n': 'viz_attr' }), attrSel]),
-      el('div', { class: 'portal-field' }, [el('label', { class: 'portal-label', for: 'viz-item', 'data-i18n': 'viz_item' }), itemSel]),
-      el('div', { class: 'portal-field' }, [el('span', { class: 'portal-label', 'data-i18n': 'viz_time' }), radios]),
+  const header = el('div', { class: 'portal-filters portal-viz-panel' }, [
+    el('div', { class: 'portal-viz-grid' }, [
+      el('p', { class: 'portal-intro', 'data-i18n': 'viz_top', 'data-i18n-html': '' }),
+      el('div', { class: 'portal-viz-selectors' }, [
+        el('div', { class: 'portal-vfield' }, [el('label', { class: 'portal-label', for: 'viz-attr', 'data-i18n': 'viz_attr' }), attrSel]),
+        el('div', { class: 'portal-vfield' }, [el('label', { class: 'portal-label', for: 'viz-item', 'data-i18n': 'viz_item' }), itemSel]),
+        el('div', { class: 'portal-vfield' }, [el('span', { class: 'portal-label', 'data-i18n': 'viz_time' }), radios]),
+      ]),
+      el('div', { class: 'portal-viz-download' }, [dl]),
     ]),
-    el('div', { class: 'portal-col-2 portal-viz-download' }, [dl]),
   ]);
   panel.append(header, el('div', { class: 'portal-body' }, [plotEl]));
 
@@ -76,7 +78,9 @@ export function createVisualize({ panel }) {
   }
 
   function fillDownload() {
-    dl.innerHTML = `<span>${tr('label_csv')}</span><span class="portal-dl-arrow" aria-hidden="true">&#8595;</span>`;
+    // label_csv carries line-break markup for the old two-line button; flatten it.
+    const text = tr('label_csv').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    dl.innerHTML = `<span aria-hidden="true">&#8595;</span> ${escapeHtml(text)}`;
   }
 
   // Rows for the current attribute/item/time selection, as objects.

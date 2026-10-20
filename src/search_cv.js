@@ -22,23 +22,20 @@ import { createResultsView } from './results.js';
 import { createDetailView } from './detail.js';
 
 export function createCvSearch({ panel }) {
-  const state = { selected: {}, isOr: {}, page: 1, pageSize: 5 };
+  const state = { selected: {}, isOr: {}, page: 1, pageSize: 25 };
   const guard = staleGuard();
   const widgets = {}; // facet key -> facet widget
 
-  // ── DOM: instructions row, two columns of facets (the second narrower), results area ──
-  const instructions = el('div', { class: 'portal-filter-header portal-filter-header-s1' }, [
-    el('div', { class: 'portal-col-12' }, [el('div', { class: 'portal-instructions', 'data-i18n': 'instructions', 'data-i18n-html': '' })]),
+  // ── DOM: one-sentence intro, two columns of facets (the second narrower), results ──
+  const cols = [el('div', { class: 'portal-filter-col' }), el('div', { class: 'portal-filter-col' })];
+  const filters = el('div', { class: 'portal-filters' }, [
+    el('p', { class: 'portal-intro', 'data-i18n': 'instructions', 'data-i18n-html': '' }),
+    el('div', { class: 'portal-filter-grid' }, cols),
   ]);
-  const cols = [
-    el('div', { class: 'portal-col-7 portal-filter-rhs' }),
-    el('div', { class: 'portal-col-5 portal-filter-rhs portal-col-divider' }),
-  ];
-  const filters = el('div', { class: 'portal-filter-header portal-filter-header-s1' }, cols);
   const body = el('div', { class: 'portal-body' });
-  panel.append(instructions, filters, body);
+  panel.append(filters, body);
 
-  // Any facet or toggle change: back to page 1 and requery everything.
+  // Any facet or All | Any change: back to page 1 and requery everything.
   const onFacetChange = () => { state.page = 1; refresh(); };
   // [column, FACETS index]:
   //   col 0: Subject, Name of Census, Years covered
@@ -51,6 +48,7 @@ export function createCvSearch({ panel }) {
 
   const results = createResultsView({
     container: body,
+    pageSize: state.pageSize,
     onOpen: openDetail,
     onPage: (d) => { state.page += d; refresh({ facets: false }); },
     onPageSize: (n) => { state.pageSize = n; state.page = 1; refresh({ facets: false }); },

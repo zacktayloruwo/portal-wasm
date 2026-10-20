@@ -43,10 +43,10 @@ export const FACETS = [
 /**
  * Build the WHERE clause for the current facet selections.
  *
- * Fields are always ANDed together.  Within one field the AND/OR toggle
+ * Fields are always ANDed together.  Within one field the All | Any control
  * decides how *multiple selected values* combine:
- *   toggle off (AND) → list_has_all(col, [...])  item must contain every value
- *   toggle on  (OR)  → list_has_any(col, [...])  item must contain at least one
+ *   All (default) → list_has_all(col, [...])  item must contain every value
+ *   Any           → list_has_any(col, [...])  item must contain at least one
  * A single value uses list_has_any (the two are equivalent then).
  *
  * `exclude` drops one facet's own clause.  It is used when computing the
@@ -138,7 +138,7 @@ export function tokenise(raw) {
  *     OR EXISTS (... itemGeoCoverage ...)
  *     OR EXISTS (... itemGeoUnits ...) )
  * Terms are joined with AND (every term must appear somewhere) or, when the
- * toggle is on, wrapped in one OR group (any term is enough).
+ * control is set to Any, wrapped in one OR group (any term is enough).
  *
  * The term is bound as a parameter and concatenated with the wildcards in
  * SQL ('%' || ? || '%'), so quotes in the term cannot break the statement.
