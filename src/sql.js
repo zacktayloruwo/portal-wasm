@@ -27,14 +27,13 @@ export function tableFor(lang) {
 }
 
 // ── Controlled-vocabulary facets ────────────────────────────────────────────
-// The six dropdowns on the first tab.  `list: true` columns are VARCHAR[] in
+// The five dropdowns on the first tab.  `list: true` columns are VARCHAR[] in
 // the database (an item can have several subjects); itemCensusName is a plain
 // scalar column and is filtered with IN instead of the list functions.
 export const FACETS = [
   { key: 'itemSubject',      list: true  },
   { key: 'itemCensusName',   list: false },
   { key: 'itemYearsCovered', list: true  },
-  { key: 'itemYearPub',      list: true  },
   { key: 'itemGeoUnits',     list: true  },
   { key: 'itemType',         list: true  },
 ];

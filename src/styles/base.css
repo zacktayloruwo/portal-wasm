@@ -72,6 +72,8 @@ nav.portal-tabs button.active:focus {
 /* ── Grid columns (Bootstrap replacement) ───────────────────────────────── */
 .portal-col-12 { flex: 0 0 100%; max-width: 100%; }
 .portal-col-6  { flex: 0 0 50%;  max-width: 50%; }
+.portal-col-7  { flex: 0 0 58.3333%; max-width: 58.3333%; }
+.portal-col-5  { flex: 0 0 41.6667%; max-width: 41.6667%; }
 .portal-col-4  { flex: 0 0 33.3333%; max-width: 33.3333%; }
 .portal-col-2  { flex: 0 0 16.6667%; max-width: 16.6667%; }
 [class*="portal-col-"] { padding: 0 15px; min-width: 0; }
@@ -144,16 +146,16 @@ input.form-control {
 .portal-table .portal-no-data { text-align: center; color: #666; padding: 16px; }
 
 /* Column width hints (were reactable colDef minWidth / maxWidth) */
-.col-itemTitle       { min-width: 240px; }
+/* Title and Name of Census get the same share of the table and wrap. */
+.col-itemTitle,
+.col-itemCensusName  { width: 18%; min-width: 200px; }
 .col-itemType        { max-width: 140px; }
-.col-itemYearPub,
 .col-itemYearsCovered{ max-width: 110px; }
 .col-itemSubject     { min-width: 180px; }
 .col-itemFormat      { max-width: 110px; }
-.col-itemCensusName  { white-space: nowrap; }
 
-.portal-detail-table th.portal-detail-key { font-weight: bold; min-width: 100px; white-space: nowrap; }
-.portal-detail-table td.portal-detail-value { min-width: 300px; }
+.portal-detail-table th.portal-detail-key { font-weight: bold; min-width: 100px; white-space: nowrap; vertical-align: top; }
+.portal-detail-table td.portal-detail-value { min-width: 300px; vertical-align: top; }
 .portal-detail-table span[data-tippy-content] { cursor: help; }
 .portal-back-btn { margin: 14px 0 4px; }
 

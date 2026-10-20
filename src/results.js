@@ -8,8 +8,8 @@
  *
  * The table is plain HTML.  Searching, sorting and paging all happen in SQL
  * (LIMIT/OFFSET), exactly as before — reactable was only ever a renderer.
- * Which columns appear comes from meta.columns[].visible_results; the CV tab
- * additionally hides itemCensusName (hideCensusName), as mod_search.R did.
+ * Which columns appear comes from meta.columns[].visible_results, set in the
+ * visible_results column of prep/namestable.xlsx.
  */
 import { el, escapeHtml, joinList } from './util.js';
 import { accessLinksHtml } from './links.js';
@@ -18,12 +18,11 @@ import { PAGE_SIZES } from './sql.js';
 
 /**
  * @param container   element to append the block to
- * @param hideCensusName  drop the "Name of Census" column
  * @param onOpen(row)     title clicked
  * @param onPage(±1)      Previous / Next clicked
  * @param onPageSize(n)   rows-per-page changed
  */
-export function createResultsView({ container, hideCensusName = false, onOpen, onPage, onPageSize }) {
+export function createResultsView({ container, onOpen, onPage, onPageSize }) {
   // ── Header row: title + "Show n rows" pill ──
   const title = el('h3', { 'data-i18n': 'title_results' });
   const sizeSelect = el('select', { class: 'portal-page-size-select', 'aria-label': 'rows per page' },
@@ -60,7 +59,7 @@ export function createResultsView({ container, hideCensusName = false, onOpen, o
   let last = null; // most recent render() arguments, replayed by relabel()
 
   function columns() {
-    return getMeta().columns.filter((c) => c.visible_results && !(hideCensusName && c.key === 'itemCensusName'));
+    return getMeta().columns.filter((c) => c.visible_results);
   }
 
   // One cell.  Everything is escaped except the link chips, which are built

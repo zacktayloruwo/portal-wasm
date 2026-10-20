@@ -1,9 +1,9 @@
 /**
  * search_cv.js — "Search by Controlled Vocabulary" tab (port of R/mod_search.R).
  *
- * Six facet dropdowns (facets.js) drive one WHERE clause (sql.buildCvWhere).
+ * Five facet dropdowns (facets.js) drive one WHERE clause (sql.buildCvWhere).
  * Every change triggers refresh(), which runs, in one batch:
- *   - six SELECT DISTINCT queries that recompute each dropdown's options given
+ *   - five SELECT DISTINCT queries that recompute each dropdown's options given
  *     the *other* selections (the "cascade": choices narrow as you filter);
  *   - COUNT(*) for the pagination text;
  *   - the current page of rows.
@@ -26,21 +26,24 @@ export function createCvSearch({ panel }) {
   const guard = staleGuard();
   const widgets = {}; // facet key -> facet widget
 
-  // ── DOM: instructions row, three columns of two facets each, results area ──
+  // ── DOM: instructions row, two columns of facets (the second narrower), results area ──
   const instructions = el('div', { class: 'portal-filter-header portal-filter-header-s1' }, [
     el('div', { class: 'portal-col-12' }, [el('div', { class: 'portal-instructions', 'data-i18n': 'instructions', 'data-i18n-html': '' })]),
   ]);
-  const cols = [0, 1, 2].map((i) => el('div', { class: `portal-col-4 portal-filter-rhs${i ? ' portal-col-divider' : ''}` }));
+  const cols = [
+    el('div', { class: 'portal-col-7 portal-filter-rhs' }),
+    el('div', { class: 'portal-col-5 portal-filter-rhs portal-col-divider' }),
+  ];
   const filters = el('div', { class: 'portal-filter-header portal-filter-header-s1' }, cols);
   const body = el('div', { class: 'portal-body' });
   panel.append(instructions, filters, body);
 
   // Any facet or toggle change: back to page 1 and requery everything.
   const onFacetChange = () => { state.page = 1; refresh(); };
-  // [column, FACETS index] — same arrangement as the Shiny layout:
-  //   col 0: Subject, Name of Census   col 1: Years covered, Year of publication
-  //   col 2: Geographic units, Content type
-  const placement = [[0, 0], [0, 1], [1, 2], [1, 3], [2, 4], [2, 5]];
+  // [column, FACETS index]:
+  //   col 0: Subject, Name of Census, Years covered
+  //   col 1: Geographic units, Content type
+  const placement = [[0, 0], [0, 1], [0, 2], [1, 3], [1, 4]];
   for (const [col, fi] of placement) {
     const f = FACETS[fi];
     widgets[f.key] = createFacet({ key: f.key, container: cols[col], onChange: onFacetChange });
@@ -48,7 +51,6 @@ export function createCvSearch({ panel }) {
 
   const results = createResultsView({
     container: body,
-    hideCensusName: true, // this tab hides the census-name column (mod_search.R)
     onOpen: openDetail,
     onPage: (d) => { state.page += d; refresh({ facets: false }); },
     onPageSize: (n) => { state.pageSize = n; state.page = 1; refresh({ facets: false }); },
@@ -65,7 +67,7 @@ export function createCvSearch({ panel }) {
   }
 
   /**
-   * Requery.  `facets: false` skips the six dropdown queries (paging only).
+   * Requery.  `facets: false` skips the five dropdown queries (paging only).
    * All queries are issued at once; DuckDB's worker executes them serially,
    * Promise.all just collects the results.
    */

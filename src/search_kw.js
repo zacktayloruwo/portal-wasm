@@ -4,8 +4,7 @@
  * A text box, a submit arrow, and one AND/OR toggle.  The text is only
  * *committed* on Enter or the button, but the toggle is read live so flipping
  * it re-filters immediately — both behaviours copied from the R module.
- * Results and detail view are the same components the first tab uses; the
- * only difference is that this tab shows the "Name of Census" column.
+ * Results and detail view are the same components the first tab uses.
  */
 import { el, staleGuard } from './util.js';
 import { query } from './db.js';
@@ -44,7 +43,6 @@ export function createKwSearch({ panel }) {
 
   const results = createResultsView({
     container: body,
-    hideCensusName: false,
     onOpen: openDetail,
     onPage: (d) => { state.page += d; refresh(); },
     onPageSize: (n) => { state.pageSize = n; state.page = 1; refresh(); },

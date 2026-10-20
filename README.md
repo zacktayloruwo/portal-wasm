@@ -106,25 +106,26 @@ the logic that spans files.
 
 ### Search by Controlled Vocabulary
 
-Six facets — Subject, Name of Census, Years covered, Year of publication,
-Geographic units, Content type — each a multi-select with an AND/OR toggle.
+Five facets, each a multi-select with an AND/OR toggle, laid out in two
+columns: Subject, Name of Census and Census Year(s) Covered by Item on the
+left; Geographic Units and Content Type in a narrower column on the right.
 `sql.buildCvWhere()` turns the selections into one `WHERE` clause:
 
 - Facets are always combined with `AND`.
 - Within a facet, the toggle decides how several selected values combine.
-  Five of the six columns are lists, so the clause is
+  Four of the five columns are lists, so the clause is
   `list_has_all(col, [v1, v2])` (AND, toggle off) or
   `list_has_any(col, [v1, v2])` (OR, toggle on). A single value always uses
   `list_has_any`. Name of Census is a scalar column and uses `IN (…)`.
 - Values are bound as prepared-statement parameters (`?`), never spliced into
   the SQL text. Column and table names come from fixed lists.
 
-Every change calls `refresh()` in `search_cv.js`, which issues eight queries
+Every change calls `refresh()` in `search_cv.js`, which issues seven queries
 at once and waits for all of them:
 
 | Query | Purpose |
 |---|---|
-| `SELECT DISTINCT UNNEST(col) AS val … WHERE <all facets> ORDER BY val` (×5) | the **cascade**: each dropdown only offers values that still occur under the current filter |
+| `SELECT DISTINCT UNNEST(col) AS val … WHERE <all facets> ORDER BY val` (×4) | the **cascade**: each dropdown only offers values that still occur under the current filter |
 | `SELECT DISTINCT itemCensusName … WHERE <all facets except census name>` | census name excludes its own clause so more than one census can be picked |
 | `SELECT COUNT(*) …` | the "Page x of y (n results)" text |
 | `SELECT * … ORDER BY … LIMIT n OFFSET m` | the visible page |
@@ -166,8 +167,9 @@ or ranking; this is a substring match, as in the R app.
 ### Results and detail view
 
 `results.js` renders a plain HTML table for the current page. Columns are the
-ones flagged `visible_results` in `meta.json`; the controlled-vocabulary tab
-also hides Name of Census, as the Shiny module did. List cells are
+ones flagged `visible_results` in `prep/namestable.xlsx` (passed through
+`meta.json`), and both search tabs show the same columns. Title and Name of
+Census share the same width and wrap. List cells are
 comma-joined, every value is HTML-escaped, and the Links column is rebuilt by
 `links.js` as `<a class="accessbutton" target="_blank">domain</a>` chips.
 
