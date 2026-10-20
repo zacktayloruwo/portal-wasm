@@ -25,6 +25,7 @@ const STATIC = {
     fr: 'Contenu temporairement indisponible. Veuillez vérifier votre connexion Internet.',
   },
   contents: { en: 'Contents', fr: 'Table des matières' },
+  more_info: { en: 'more information', fr: 'plus d’information' },
 };
 
 let meta = null;
@@ -58,6 +59,11 @@ export function tr(key) {
   const s = STATIC[key];
   if (s) return s[current] ?? s.en;
   return key;
+}
+
+/** True when meta.json carries a translation for this key (e.g. optional help text). */
+export function hasTr(key) {
+  return Boolean(meta?.translation?.[key]);
 }
 
 /** Localised header for a database column (e.g. itemSubject → "Subject" / "Sujet"). */

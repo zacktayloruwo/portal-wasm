@@ -5,12 +5,53 @@
  * (the successor of the selectize.js widget Shiny used); the toggle is the
  * same custom-styled checkbox (.s2-toggle) as before.
  *
+ * When meta.json has a translation named help_<key> (rows in
+ * prep/interface_elements.xlsx), an info glyph follows the field name and
+ * shows that text on hover, focus or click.
+ *
  * The widget does not know anything about SQL.  It reports changes through
  * onChange(key) and exposes getSelected()/isOr() for search_cv.js to read.
  */
 import TomSelect from 'tom-select';
 import 'tom-select/dist/css/tom-select.css';
+import tippy from 'tippy.js';
+import 'tippy.js/dist/tippy.css';
 import { el } from './util.js';
+import { tr, hasTr, colLabel } from './i18n.js';
+
+// Circled "i", drawn in currentColor so it follows the label colour.
+const INFO_ICON =
+  '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" focusable="false">' +
+  '<circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/>' +
+  '<rect x="7.25" y="7" width="1.5" height="4.6" rx="0.75" fill="currentColor"/>' +
+  '<circle cx="8" cy="4.7" r="1" fill="currentColor"/></svg>';
+
+// Field name plus, when help text exists, the info glyph and its tooltip.
+function labelWithHelp(key, label) {
+  const row = el('div', { class: 'portal-label-row' }, [label]);
+  const helpKey = `help_${key}`;
+  if (!hasTr(helpKey)) return row;
+
+  const info = el('button', { type: 'button', class: 'portal-info', html: INFO_ICON });
+  row.appendChild(info);
+  // Hover or keyboard focus shows it; a click keeps it open until the next
+  // click elsewhere, which is also how it works on touch screens.
+  const tip = tippy(info, {
+    content: tr(helpKey),
+    trigger: 'mouseenter focus click',
+    placement: 'right',
+    maxWidth: 320,
+    theme: 'portal-light',
+    appendTo: () => document.body,
+  });
+  const relabel = () => {
+    tip.setContent(tr(helpKey));
+    info.setAttribute('aria-label', `${colLabel(key)}, ${tr('more_info')}`);
+  };
+  relabel();
+  document.addEventListener('langchange', relabel);
+  return row;
+}
 
 export function createFacet({ key, container, onChange }) {
   const selectId = `facet-${key}`;
@@ -23,7 +64,7 @@ export function createFacet({ key, container, onChange }) {
   const toggle = el('input', { class: 's2-toggle', type: 'checkbox', role: 'switch', id: toggleId, 'aria-label': 'AND / OR' });
 
   const row = el('div', { class: 's2-filter-row' }, [
-    el('div', { class: 's2-filter-input' }, [label, select]),
+    el('div', { class: 's2-filter-input' }, [labelWithHelp(key, label), select]),
     el('div', { class: 's2-toggle-wrap' }, [
       el('div', { class: 's2-toggle-labels' }, [
         el('span', { class: 's2-and-label', 'data-i18n': 'and' }),

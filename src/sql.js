@@ -14,11 +14,13 @@
 export const LANGS = ['en', 'fr'];
 export const PAGE_SIZES = [5, 10, 15, 25, 50, 100];
 
-// Fixed result order, identical to the Shiny app: first by census year of
-// publication (list joined with commas; falls back to the first year covered),
-// then by title.  NULLS LAST keeps undated items at the end.
+// Fixed result order: by the first entry in Census Year(s) Covered by Item
+// (the list is stored sorted, so this is the earliest year), then by title.
+// NULLS LAST keeps undated items at the end; id makes ties deterministic so
+// the browser and R return pages in the same order.
+// Keep in step with order_by in prep/prep_db.R, which writes the self-test.
 export const ORDER_BY =
-  " ORDER BY COALESCE(NULLIF(array_to_string(itemYearPub, ','), ''), itemYearsCovered[1], '') ASC NULLS LAST, itemTitle ASC NULLS LAST";
+  " ORDER BY itemYearsCovered[1] ASC NULLS LAST, itemTitle ASC NULLS LAST, id ASC";
 
 /** inventory_en | inventory_fr — throws on anything else. */
 export function tableFor(lang) {

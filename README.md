@@ -109,6 +109,9 @@ the logic that spans files.
 Five facets, each a multi-select with an AND/OR toggle, laid out in two
 columns: Subject, Name of Census and Census Year(s) Covered by Item on the
 left; Geographic Units and Content Type in a narrower column on the right.
+An info glyph after a field name shows that field's definition on hover or
+click; the text comes from `help_<field>` rows in
+`prep/interface_elements.xlsx`, and a field without such a row gets no glyph.
 `sql.buildCvWhere()` turns the selections into one `WHERE` clause:
 
 - Facets are always combined with `AND`.
@@ -132,8 +135,8 @@ at once and waits for all of them:
 
 Paging (Previous / Next / rows per page) re-runs only the last two.
 
-The fixed sort order is the one from the Shiny app: census year of
-publication (falling back to the first year covered), then title, with
+Results are sorted by the first entry in Census Year(s) Covered by Item,
+then by title, with
 undated items last.
 
 Because queries are asynchronous, a fast second change could finish before a

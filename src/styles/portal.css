@@ -6,6 +6,43 @@
 .tippy-box  { background-color: #0b5394 !important; }
 .tippy-arrow { color: #0b5394 !important; }
 
+/* Search-field help sits on the blue filter header, so it uses a light box. */
+.tippy-box[data-theme~='portal-light'] {
+  background-color: #ffffff !important;
+  color: #1d2733;
+  border: 1px solid #c9d4df;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.18);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.tippy-box[data-theme~='portal-light'] > .tippy-arrow { color: #ffffff !important; }
+
+/* Field name with an optional info glyph to its right. */
+.portal-label-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+.portal-label-row .portal-label { margin-bottom: 0; }
+.portal-info {
+  appearance: none;
+  display: inline-flex;
+  border: 0;
+  background: transparent;
+  padding: 2px;
+  margin: 0;
+  color: inherit;
+  line-height: 0;
+  border-radius: 50%;
+  cursor: help;
+  opacity: 0.85;
+}
+.portal-info:hover,
+.portal-info[aria-expanded="true"] { opacity: 1; }
+.portal-info:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; opacity: 1; }
+.portal-filter-header .portal-info { color: white; }
+
 /* ── Title link and access chips ────────────────────────────────────────── */
 .portal-title-link {
   color: #0b5394;
