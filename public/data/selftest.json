@@ -71,7 +71,9 @@
       "mort"
     ],
     "expected_count": 89,
-    "first_ids": ["DP20002457", "DP20001130", "DP20000753", "DP20000754", "DP20000765"]
+    "first_ids": ["DP20002457", "DP20001130", "DP20000753", "DP20000754", "DP20000765"],
+    "kw_text": "\"place of birth\" mort",
+    "kw_or": false
   },
   {
     "label": "en: kw \"place of birth\" mort (OR)",
@@ -89,7 +91,9 @@
       "mort"
     ],
     "expected_count": 2246,
-    "first_ids": ["AP30003624", "DP40017773", "DP40001886", "DP20001885", "DP20002720"]
+    "first_ids": ["AP30003624", "DP40017773", "DP40001886", "DP20001885", "DP20002720"],
+    "kw_text": "\"place of birth\" mort",
+    "kw_or": true
   },
   {
     "label": "fr: kw donnees",
@@ -103,7 +107,9 @@
       "donnees"
     ],
     "expected_count": 2199,
-    "first_ids": ["DP10002330", "RP40000475", "DP10000473", "DP10000474", "DP20010466"]
+    "first_ids": ["DP10002330", "RP40000475", "DP10000473", "DP10000474", "DP20010466"],
+    "kw_text": "donnees",
+    "kw_or": false
   },
   {
     "label": "fr: kw données",
@@ -117,7 +123,9 @@
       "donnees"
     ],
     "expected_count": 2199,
-    "first_ids": ["DP10002330", "RP40000475", "DP10000473", "DP10000474", "DP20010466"]
+    "first_ids": ["DP10002330", "RP40000475", "DP10000473", "DP10000474", "DP20010466"],
+    "kw_text": "données",
+    "kw_or": false
   },
   {
     "label": "fr: one subject",

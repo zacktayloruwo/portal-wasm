@@ -49,8 +49,9 @@ let meta = null;
 let current = 'en';
 
 // Initial language: ?lang=fr in the URL wins, then the last choice saved in
-// localStorage, then English.
-function pickInitial() {
+// localStorage, then English.  Exported so main.js can start the right data
+// download before meta.json has arrived.
+export function detectLang() {
   const q = new URLSearchParams(location.search).get('lang');
   if (q === 'en' || q === 'fr') return q;
   try {
@@ -62,7 +63,7 @@ function pickInitial() {
 
 export function initI18n(m) {
   meta = m;
-  current = pickInitial();
+  current = detectLang();
   document.documentElement.lang = current;
 }
 

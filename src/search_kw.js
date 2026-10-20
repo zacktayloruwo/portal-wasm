@@ -7,8 +7,8 @@
  * Results and detail view are the same components the first tab uses.
  */
 import { el, staleGuard } from './util.js';
-import { query } from './db.js';
 import { ORDER_BY, buildKwWhere, tableFor } from './sql.js';
+import { query, ensureSearchText } from './db.js';
 import { lang, tr } from './i18n.js';
 import { createAllAny } from './facets.js';
 import { createResultsView } from './results.js';
@@ -61,6 +61,8 @@ export function createKwSearch({ panel }) {
     const w = buildKwWhere(state.kw, mode.isOr());
     const offset = (state.page - 1) * state.pageSize;
     try {
+      // Keyword queries read the pre-built search_text column (built once per language).
+      if (w.sql) await ensureSearchText(lang());
       const [countRows, page] = await Promise.all([
         query(`SELECT COUNT(*) AS n FROM ${tbl}${w.sql}`, w.params),
         query(`SELECT * FROM ${tbl}${w.sql}${ORDER_BY} LIMIT ${state.pageSize} OFFSET ${offset}`, w.params),
@@ -73,11 +75,25 @@ export function createKwSearch({ panel }) {
   }
 
   async function openDetail(row) {
-    const rows = await query(`SELECT * FROM ${tableFor(lang())} WHERE id = ?`, [row.id]);
+    // Spinner while the record loads (seconds if the engine is still starting).
+    results.setLoading(true);
+    let rows;
+    try {
+      rows = await query(`SELECT * FROM ${tableFor(lang())} WHERE id = ?`, [row.id]);
+    } finally {
+      results.setLoading(false);
+    }
     if (!rows.length) return;
     results.show(false);
     detail.show(rows[0]);
     body.scrollIntoView({ block: 'start' });
+  }
+
+  /** Show the opening view from snapshot_<lang>.json (see search_cv.js). */
+  function showSnapshot(snap) {
+    if (snap.page_size !== state.pageSize) return refresh();
+    results.render({ rows: snap.rows, total: snap.total, page: 1, pageSize: state.pageSize });
+    return Promise.resolve();
   }
 
   function closeDetail() {
@@ -101,5 +117,5 @@ export function createKwSearch({ panel }) {
     reset();
   });
 
-  return { refresh, reset };
+  return { refresh, reset, showSnapshot };
 }

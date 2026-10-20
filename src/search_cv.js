@@ -13,7 +13,7 @@
  * read from the widgets before each refresh, and a staleGuard so that a slow
  * refresh cannot overwrite the results of a newer one.
  */
-import { el, staleGuard } from './util.js';
+import { el, staleGuard, listToArray } from './util.js';
 import { query } from './db.js';
 import { FACETS, ORDER_BY, buildCvWhere, tableFor } from './sql.js';
 import { lang } from './i18n.js';
@@ -101,11 +101,30 @@ export function createCvSearch({ panel }) {
 
   // Title clicked: fetch the full record by id and swap the results for the detail view.
   async function openDetail(row) {
-    const rows = await query(`SELECT * FROM ${tableFor(lang())} WHERE id = ?`, [row.id]);
+    // Spinner while the record loads (seconds if the engine is still starting).
+    results.setLoading(true);
+    let rows;
+    try {
+      rows = await query(`SELECT * FROM ${tableFor(lang())} WHERE id = ?`, [row.id]);
+    } finally {
+      results.setLoading(false);
+    }
     if (!rows.length) return;
     results.show(false);
     detail.show(rows[0]);
     body.scrollIntoView({ block: 'start' });
+  }
+
+  /**
+   * Show the opening view written by prep_db.R (snapshot_<lang>.json) without
+   * querying: the first page of results and every field's choices.  Used at
+   * start-up so results appear before the engine has loaded.
+   */
+  function showSnapshot(snap) {
+    if (snap.page_size !== state.pageSize) return refresh();
+    FACETS.forEach((f) => widgets[f.key].setChoices(listToArray(snap.choices?.[f.key])));
+    results.render({ rows: snap.rows, total: snap.total, page: 1, pageSize: state.pageSize });
+    return Promise.resolve();
   }
 
   function closeDetail() {
@@ -130,5 +149,5 @@ export function createCvSearch({ panel }) {
     reset();
   });
 
-  return { refresh, reset };
+  return { refresh, reset, showSnapshot };
 }

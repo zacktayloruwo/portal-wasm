@@ -75,11 +75,13 @@ export function buildCvWhere(state, { exclude } = {}) {
 }
 
 // ── Keyword search ──────────────────────────────────────────────────────────
-// Which columns a keyword is matched against.  Text columns get a plain LIKE;
-// list columns are unnested so each element is tested separately.
-const TEXT_COLS = ['itemTitle'];
-const LIST_COLS = ['itemSubject', 'itemGeoCoverage', 'itemGeoUnits'];
-
+// Keywords are matched against one pre-built column, search_text: the title,
+// subjects, geographic coverage and geographic units, lower-cased and with
+// accents folded, joined with a control character (chr(1)) so a term can
+// never match across two fields.  db.ensureSearchText() adds the column the
+// first time keyword search is needed (about 0.2 s); after that each search
+// takes a few milliseconds instead of folding every row on every query.
+//
 // Accent folding is done by hand (not with a Unicode normaliser) so that the
 // JavaScript side and the SQL side apply *exactly* the same mapping, and so the
 // counts match the R app, which used this same table.
@@ -109,6 +111,12 @@ export function deaccentSql(expr) {
   return ACCENT_PAIRS.reduce((acc, [from, to]) => `replace(${acc}, '${from}', '${to}')`, expr);
 }
 
+/** SQL expression that builds search_text for one row (see db.ensureSearchText). */
+export const SEARCH_TEXT_SQL = deaccentSql(
+  "LOWER(concat_ws(chr(1), itemTitle, array_to_string(itemSubject, chr(1)), " +
+  "array_to_string(itemGeoCoverage, chr(1)), array_to_string(itemGeoUnits, chr(1))))",
+);
+
 // Straight, curly, and French guillemet quotes all delimit a phrase.
 const QUOTE_RX = /["'«»‹›]([^"'«»‹›]*)["'«»‹›]/g;
 
@@ -130,41 +138,22 @@ export function tokenise(raw) {
 }
 
 /**
- * Build the WHERE clause for the keyword tab.
+ * Build the WHERE clause for the keyword tab: one
+ *   search_text LIKE '%' || ? || '%'
+ * per term, joined with AND (every term must appear) or, when the control is
+ * set to Any, wrapped in one OR group.  The term is bound as a parameter, so
+ * quotes in it cannot break the statement.  % and _ inside a term still act
+ * as LIKE wildcards, as in the R app.
  *
- * For each term one bracketed clause is produced:
- *   ( <deaccented lower title> LIKE '%term%'
- *     OR EXISTS (SELECT 1 FROM UNNEST(itemSubject)     _kw(v) WHERE <deaccented lower v> LIKE '%term%')
- *     OR EXISTS (... itemGeoCoverage ...)
- *     OR EXISTS (... itemGeoUnits ...) )
- * Terms are joined with AND (every term must appear somewhere) or, when the
- * control is set to Any, wrapped in one OR group (any term is enough).
- *
- * The term is bound as a parameter and concatenated with the wildcards in
- * SQL ('%' || ? || '%'), so quotes in the term cannot break the statement.
- * Note: % and _ inside a term still act as LIKE wildcards, as in the R app.
+ * Same results as the R app's per-column test (title, or any one subject /
+ * coverage / unit containing the term): verified by the ?selftest page.
  */
 export function buildKwWhere(raw, isOr) {
   const text = (raw ?? '').trim();
   if (!text) return { sql: '', params: [] };
   const phrases = tokenise(text);
   if (!phrases.length) return { sql: '', params: [] };
-
-  const params = [];
-  const clauses = phrases.map((ph) => {
-    const term = deaccentJs(ph);
-    const tests = [];
-    for (const col of TEXT_COLS) {
-      tests.push(`${deaccentSql(`LOWER(COALESCE(${col}, ''))`)} LIKE '%' || ? || '%'`);
-      params.push(term);
-    }
-    for (const col of LIST_COLS) {
-      tests.push(`EXISTS (SELECT 1 FROM UNNEST(${col}) _kw(v) WHERE ${deaccentSql('LOWER(v)')} LIKE '%' || ? || '%')`);
-      params.push(term);
-    }
-    return `(${tests.join(' OR ')})`;
-  });
-
+  const clauses = phrases.map(() => "search_text LIKE '%' || ? || '%'");
   const body = isOr ? `(${clauses.join(' OR ')})` : clauses.join(' AND ');
-  return { sql: ' WHERE ' + body, params };
+  return { sql: ' WHERE ' + body, params: phrases.map(deaccentJs) };
 }

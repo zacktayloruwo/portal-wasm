@@ -36,7 +36,11 @@ npm run preview    # serves dist/ for a final check
 
 Append `?selftest` to the URL to run the queries in `public/data/selftest.json`
 against DuckDB-WASM and print pass/fail to the browser console
-(`window.__selftest` holds the table).
+(`window.__selftest` holds the table). Keyword cases are also run through the
+app's own keyword search and must give the same results.
+
+After the engine has loaded, the page sets `data-engine="ready"` on the
+`<html>` element, which is handy for timing tests.
 
 ## How it works
 
@@ -50,6 +54,7 @@ in the project's data-preparation folder (see [Update the data](#update-the-data
 | `inventory_en.parquet`, `inventory_fr.parquet` | one row per inventory item, 28 columns; nine of them are `VARCHAR[]` lists (subject, years, formats, …) plus two new list columns `access_urls` / `access_labels` | current language at boot, the other on first toggle |
 | `meta.json` | version strings, every interface translation, and one entry per database column (EN/FR header, whether it is a list, whether it appears in results / detail, and the tooltip definition) | at boot |
 | `viz_counts.json` | pre-aggregated counts for the Visualize tab | first visit to the tab |
+| `snapshot_en.json`, `snapshot_fr.json` | the opening view: first 25 records in the default order, the record count, and every search field's choices (about 6 KB compressed) | at boot, for the current language |
 | `selftest.json` | query fixtures with the counts R's DuckDB produced | only with `?selftest` |
 
 Compared with the Shiny app's 67 MB DuckDB file, each parquet is about 1.3 MB.
@@ -59,24 +64,31 @@ largest download (about 8 MB compressed) and is cached by the browser.
 
 ### Start-up sequence
 
-`src/main.js` runs these steps, in order:
+`src/main.js` is arranged so the visitor sees results before the search
+engine has finished loading:
 
-1. Fetch `meta.json` and initialise translations (`i18n.js`). The language is
-   taken from `?lang=`, then `localStorage`, then defaults to English.
-2. Build the five tab panels. Each factory (`search_cv.js`, `search_kw.js`,
-   `visualize.js`, `markdown.js`) appends its own DOM to an empty `<section>`
-   in `index.html` and returns a small controller (`refresh`, `reset`,
-   `activate`, `load`).
-3. Start DuckDB-WASM in a Web Worker (`db.js`), download the parquet for the
-   current language, and copy it into an in-memory table named
-   `inventory_en` or `inventory_fr`. The overlay shows byte progress.
-4. Run the first controlled-vocabulary query so the facets and results are
-   populated, then hide the overlay.
-5. Start the hash router (`router.js`). The URL hash names the tab
+1. As soon as the script runs, it starts the two large downloads side by
+   side: the DuckDB-WASM engine (in a Web Worker, `db.js`) and the parquet for
+   the current language. The language is taken from `?lang=`, then
+   `localStorage`, then defaults to English. When both have arrived the
+   parquet is copied into an in-memory table, `inventory_en` or
+   `inventory_fr`.
+2. Meanwhile it fetches `meta.json` and `snapshot_<lang>.json`, initialises
+   translations (`i18n.js`) and builds the five tab panels. Each factory
+   (`search_cv.js`, `search_kw.js`, `visualize.js`, `markdown.js`) appends its
+   own DOM to an empty `<section>` in `index.html` and returns a small
+   controller (`refresh`, `reset`, `showSnapshot`, `activate`, `load`).
+3. It shows the snapshot (the first page of results and every field's
+   choices) and hides the overlay. Without a snapshot it waits for the engine
+   and runs the first query instead.
+4. It starts the hash router (`router.js`). The URL hash names the tab
    (`#search`, `#search_kw`, `#visualize`, `#documentation`, `#about`), so
    tabs are bookmarkable and the back button works.
 
-Any failure in steps 1–4 is written into the overlay instead of leaving a blank
+Every query goes through `db.query()`, which waits until the engine and the
+first table are ready, so anything the visitor does early (choosing a filter,
+paging, opening a record) simply shows the results spinner until then. A
+failure in any step is written into the overlay instead of leaving a blank
 page.
 
 ### Modules
@@ -159,21 +171,27 @@ live, so switching it re-runs the last search immediately.
 
 `sql.tokenise()` splits the text in two passes: anything in quotes
 (`"…"`, `'…'`, `«…»`) is one phrase; the rest is split on spaces and commas.
-For each term `sql.buildKwWhere()` produces
+
+Keywords are matched against one pre-built column, `search_text`: the title,
+subjects, geographic coverage and geographic units of each record,
+lower-cased, accent-folded and joined with a control character so a term
+cannot match across two fields. `db.ensureSearchText()` adds the column to a
+language's table the first time keyword search needs it, in about 0.2 s; it
+starts in the background when the keyword tab is opened or the language is
+switched there. For each term `sql.buildKwWhere()` then produces
 
 ```sql
-( <lower, de-accented itemTitle> LIKE '%' || ? || '%'
-  OR EXISTS (SELECT 1 FROM UNNEST(itemSubject)     _kw(v) WHERE <lower, de-accented v> LIKE '%' || ? || '%')
-  OR EXISTS (SELECT 1 FROM UNNEST(itemGeoCoverage) _kw(v) WHERE … )
-  OR EXISTS (SELECT 1 FROM UNNEST(itemGeoUnits)    _kw(v) WHERE … ) )
+search_text LIKE '%' || ? || '%'
 ```
 
 and the term clauses are joined with `AND` (every term must appear) or wrapped
-in one `OR` group (any term). Accent folding uses a fixed 17-pair table
-(é è ê ë → e, ç → c, œ → oe, …) applied identically to the typed term in
-JavaScript and to the column expression as nested `replace()` calls in SQL,
-so `donnees` and `données` return the same rows. There is no full-text index
-or ranking; this is a substring match, as in the R app.
+in one `OR` group (any term). A search takes a few milliseconds instead of the
+second or more it took when every row was folded on every query. Accent
+folding uses a fixed 17-pair table (é è ê ë → e, ç → c, œ → oe, …) applied
+identically to the typed term in JavaScript and to the column in SQL, so
+`donnees` and `données` return the same rows. The results are identical to
+the R app's per-field test, which the `?selftest` page checks. There is no
+full-text index or ranking; this is a substring match, as in the R app.
 
 ### Results and detail view
 
@@ -292,7 +310,8 @@ census_inventory_portal/
    ```
 
    It writes `inventory_dat.csv` and `db_export.csv` into `prep/`, and the
-   parquet files, `meta.json`, `viz_counts.json` and `selftest.json` into
+   parquet files, `meta.json`, `viz_counts.json`, the two snapshots and
+   `selftest.json` into
    `../portal-wasm/public/data` (set `PORTAL_WEB_DATA` to write elsewhere).
    It stops with an error if any of its test searches return different
    results from the parquet than from the source table.

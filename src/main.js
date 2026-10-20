@@ -2,11 +2,15 @@
  * main.js — application entry point.
  *
  * Boot sequence (all in the browser, no server):
- *   1. fetch data/meta.json            → translations, column metadata, version strings
+ *   0. as soon as this script runs, start the two big downloads side by side:
+ *      the DuckDB-WASM engine and the current language's parquet
+ *   1. fetch data/meta.json (translations, column metadata, version strings)
+ *      and data/snapshot_<lang>.json (the opening view) in parallel
  *   2. initialise i18n + build the five tab panels (they create their own DOM)
- *   3. start DuckDB-WASM in a Web Worker and load the current language's parquet
- *   4. run the first controlled-vocabulary query so the page has content
- *   5. hide the full-page overlay and start the hash router
+ *   3. show the snapshot (first page of results and the field choices) and
+ *      hide the overlay; the page is readable before the engine is ready
+ *   4. start the hash router; any query waits for the engine (db.query is
+ *      gated on it) behind the results spinner
  *
  * This file also owns the two pieces of state that span tabs: the EN/FR
  * switch and the "switching between search tabs resets the other one" rule
@@ -22,9 +26,10 @@ import '@fontsource/source-sans-3/700.css';
 import '@fontsource/source-serif-4/600.css';
 import './styles/base.css';
 import './styles/portal.css';
-import { initI18n, applyStatic, setLang, lang, tr } from './i18n.js';
+import { initI18n, detectLang, applyStatic, setLang, lang, tr } from './i18n.js';
 import { initRouter } from './router.js';
-import { initDb, ensureTable, query } from './db.js';
+import { initDb, ensureTable, ensureSearchText, holdQueriesUntil, query } from './db.js';
+import { ORDER_BY, buildKwWhere, tableFor } from './sql.js';
 import { createCvSearch } from './search_cv.js';
 import { createKwSearch } from './search_kw.js';
 import { createVisualize } from './visualize.js';
@@ -48,39 +53,69 @@ function showOverlay(on) {
   overlay.classList.toggle('is-hidden', !on);
 }
 
+const dataLabel = (l) => (l === 'fr' ? 'Chargement des données' : 'Loading data');
+
 // Download + register one language's inventory table (no-op if already loaded).
 async function loadLang(l) {
-  await ensureTable(l, progress(lang() === 'fr' ? 'Chargement des données' : 'Loading data'));
+  await ensureTable(l, progress(dataLabel(lang())));
 }
+
+// 0. Start the engine and this language's data now, in parallel, before
+//    anything else.  Queries wait on this; the page does not.
+const startLang = detectLang();
+const engineReady = Promise.all([initDb(), ensureTable(startLang, progress(dataLabel(startLang)))]);
+holdQueriesUntil(engineReady);
+engineReady.then(() => { document.documentElement.dataset.engine = 'ready'; }, () => {});
+
+const fetchJson = async (path) => {
+  const res = await fetch(`${import.meta.env.BASE_URL}${path}`, { cache: 'no-cache' });
+  if (!res.ok) throw new Error(`${path}: HTTP ${res.status}`);
+  return res.json();
+};
 
 /**
  * Optional self-test, enabled by adding ?selftest to the URL.
  * data/selftest.json is written by prep/prep_db.R and holds SQL, parameters,
  * and the counts/ids that R's DuckDB returned.  Running
  * the same statements through DuckDB-WASM proves the two engines agree on the
- * exported parquet.  Results go to console.table() and window.__selftest.
+ * exported parquet.  Keyword cases also run the raw search text through the
+ * app's own keyword code (the pre-built search_text column) and must give
+ * the same count and first records (app_ok).  Results go to console.table()
+ * and window.__selftest.
  */
 async function selftest() {
-  const res = await fetch(`${import.meta.env.BASE_URL}data/selftest.json`, { cache: 'no-cache' });
-  if (!res.ok) { console.warn('selftest.json missing'); return; }
-  const cases = await res.json();
+  let cases;
+  try { cases = await fetchJson('data/selftest.json'); } catch { console.warn('selftest.json missing'); return; }
   const out = [];
   for (const c of cases) {
     if (c.lang && c.lang !== lang()) await ensureTable(c.lang); // FR fixtures need the FR table
     const [{ n }] = await query(c.count_sql, c.params ?? []);
     const ids = (await query(c.ids_sql, c.params ?? [])).map((r) => r.id);
     const idsOk = JSON.stringify(ids) === JSON.stringify(c.first_ids);
-    out.push({ label: c.label, expected: c.expected_count, actual: Number(n), count_ok: Number(n) === c.expected_count, ids_ok: idsOk });
+    let appOk = true;
+    if (c.kw_text != null) {
+      await ensureSearchText(c.lang);
+      const w = buildKwWhere(c.kw_text, c.kw_or);
+      const tbl = tableFor(c.lang);
+      const [{ n: an }] = await query(`SELECT COUNT(*) AS n FROM ${tbl}${w.sql}`, w.params);
+      const aids = (await query(`SELECT id FROM ${tbl}${w.sql}${ORDER_BY} LIMIT 5`, w.params)).map((r) => r.id);
+      appOk = Number(an) === c.expected_count && JSON.stringify(aids) === JSON.stringify(c.first_ids);
+    }
+    out.push({ label: c.label, expected: c.expected_count, actual: Number(n), count_ok: Number(n) === c.expected_count, ids_ok: idsOk, app_ok: appOk });
   }
   console.table(out);
-  const failed = out.filter((r) => !r.count_ok || !r.ids_ok).length;
+  const failed = out.filter((r) => !r.count_ok || !r.ids_ok || !r.app_ok).length;
   console.log(`selftest: ${out.length - failed}/${out.length} passed`);
   window.__selftest = out;
 }
 
 async function boot() {
-  // 1. Metadata first: everything else needs translations and column info.
-  const meta = await (await fetch(`${import.meta.env.BASE_URL}data/meta.json`, { cache: 'no-cache' })).json();
+  // 1. Metadata and the opening snapshot (small files) while the engine loads.
+  //    A missing snapshot is not fatal: the page then waits for the engine.
+  const [meta, snapshot] = await Promise.all([
+    fetchJson('data/meta.json'),
+    fetchJson(`data/snapshot_${startLang}.json`).catch(() => null),
+  ]);
   initI18n(meta);
 
   // Footer strings come from the settings block in prep/prep_db.R via meta.json.
@@ -103,16 +138,25 @@ async function boot() {
   // Now that every [data-i18n] node exists, fill in the translated text.
   applyStatic();
 
-  // 3. Engine + data.
+  // 3. Opening view: from the snapshot if there is one, else from the engine.
   setStatus(tr('loading') + '…');
-  await initDb();
-  await loadLang(lang());
-
-  // 4. First query populates the facet dropdowns and the results table.
-  //    The keyword tab's empty search is kicked off but not awaited.
-  await cv.refresh();
-  kw.refresh();
+  if (snapshot) {
+    await cv.showSnapshot(snapshot);
+    await kw.showSnapshot(snapshot);
+  } else {
+    await engineReady;
+    await cv.refresh();
+    kw.refresh();
+  }
   showOverlay(false);
+
+  // If the engine fails after the snapshot is on screen, say so.
+  engineReady.catch((err) => {
+    console.error(err);
+    setStatus(`Error: ${err.message ?? err}`);
+    overlay.classList.add('is-error');
+    showOverlay(true);
+  });
 
   // 5. Tabs are driven by the URL hash so they are bookmarkable.  The router
   //    calls this on every change; the tab modules are lazy where it matters
@@ -121,6 +165,8 @@ async function boot() {
     // Switching between the two search tabs clears the other one (app_server.R).
     if (tab === 'search' && prev === 'search_kw') kw.reset();
     if (tab === 'search_kw' && prev === 'search') cv.reset();
+    // Build the keyword-search column in the background on first visit.
+    if (tab === 'search_kw') ensureSearchText(lang()).catch(console.error);
     if (tab === 'visualize') viz.activate();
     if (tab === 'documentation') doc.load();
     if (tab === 'about') about.load();
@@ -135,8 +181,10 @@ async function boot() {
     try {
       await loadLang(next);
       setLang(next); // updates static labels and dispatches 'langchange'
-      // Markdown pages only reload if they are the tab on screen.
       const tab = location.hash.replace(/^#/, '');
+      // On the keyword tab, build this language's search column right away.
+      if (tab === 'search_kw') ensureSearchText(next).catch(console.error);
+      // Markdown pages only reload if they are the tab on screen.
       if (tab === 'documentation') doc.load();
       if (tab === 'about') about.load();
     } catch (err) {
@@ -150,7 +198,7 @@ async function boot() {
   }
   langButtons.forEach((b) => b.addEventListener('click', () => switchLang(b.dataset.lang)));
 
-  if (new URLSearchParams(location.search).has('selftest')) selftest().catch(console.error);
+  if (new URLSearchParams(location.search).has('selftest')) engineReady.then(selftest).catch(console.error);
 }
 
 // Any boot failure (no WebAssembly, blocked download, ...) is shown in the overlay.
