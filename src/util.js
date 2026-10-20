@@ -24,6 +24,7 @@ export const escapeAttr = escapeHtml;
 export function listToArray(v) {
   if (v == null) return [];
   if (Array.isArray(v)) return v;
+  if (typeof v === 'string') return [v]; // a string is one value, not a list of characters
   if (typeof v.toArray === 'function') return Array.from(v.toArray());
   if (typeof v[Symbol.iterator] === 'function') return Array.from(v);
   return [v];
