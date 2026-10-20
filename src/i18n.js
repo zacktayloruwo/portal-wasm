@@ -35,6 +35,7 @@ const STATIC = {
   link_n: { en: 'Link {n}', fr: 'Lien {n}' },
   // keyword box
   keywords: { en: 'Keywords', fr: 'Mots-clés' },
+  download_chart: { en: 'Download the chart', fr: 'Télécharger le graphique' },
   search_btn: { en: 'Search', fr: 'Rechercher' },
   loading: { en: 'Loading', fr: 'Chargement' },
   unavailable: {

@@ -51,16 +51,24 @@ in the project's data-preparation folder (see [Update the data](#update-the-data
 
 | File | Contents | Loaded |
 |---|---|---|
-| `inventory_en.parquet`, `inventory_fr.parquet` | one row per inventory item, 28 columns; nine of them are `VARCHAR[]` lists (subject, years, formats, …) plus two new list columns `access_urls` / `access_labels` | current language at boot, the other on first toggle |
+| `inventory_en.parquet`, `inventory_fr.parquet` | one row per inventory item, 27 columns; nine of them are `VARCHAR[]` lists (subject, years, formats, …) plus two new list columns `access_urls` / `access_labels` | current language at boot, the other in the background once the page is idle |
 | `meta.json` | version strings, every interface translation, and one entry per database column (EN/FR header, whether it is a list, whether it appears in results / detail, and the tooltip definition) | at boot |
 | `viz_counts.json` | pre-aggregated counts for the Visualize tab | first visit to the tab |
 | `snapshot_en.json`, `snapshot_fr.json` | the opening view: first 25 records in the default order, the record count, and every search field's choices (about 6 KB compressed) | at boot, for the current language |
 | `selftest.json` | query fixtures with the counts R's DuckDB produced | only with `?selftest` |
 
-Compared with the Shiny app's 67 MB DuckDB file, each parquet is about 1.3 MB.
+Compared with the Shiny app's 67 MB DuckDB file, each parquet is about 1.2 MB.
 The pre-rendered `access_link` HTML column was dropped and is rebuilt in the
-browser from the two URL/label lists. The DuckDB-WASM engine itself is the
-largest download (about 8 MB compressed) and is cached by the browser.
+browser from the two URL/label lists, and the raw `itemAccess` link text is
+dropped too, since `access_urls` holds the same URLs.
+
+The DuckDB-WASM engine itself is the largest download (about 6.8 MB). `db.js`
+loads it from jsDelivr, pinned to the installed package version, because
+jsDelivr serves it Brotli-compressed (about 1 MB smaller than GitHub Pages'
+gzip) and lets browsers cache it for a year. If jsDelivr cannot be reached,
+the self-hosted copy built into `dist/assets` is used instead. When it first
+reads a parquet file the engine also downloads its parquet extension (about
+650 KB) from `extensions.duckdb.org`.
 
 ### Start-up sequence
 
@@ -108,7 +116,8 @@ src/
   links.js       rebuilds the link chips from access_urls / access_labels
   tooltips.js    tippy.js initialisation
   markdown.js    fetch + render + table of contents for the two markdown tabs
-  visualize.js   Plotly bar chart and CSV export
+  visualize.js   Visualize tab: selectors, chart, CSV and PNG downloads
+  barchart.js    the bar chart as plain SVG, and its PNG export
   util.js        escapeHtml, listToArray, staleGuard, el(), downloadBlob
   styles/        base.css (replaces Bootstrap/reactable), portal.css (port of custom.css)
 ```
@@ -228,13 +237,14 @@ were aggregated in R by `prep_db.R`, as compact rows
 `[year, attributeKey, value, count]` under `yearPub` (by year of publication)
 and `yearCov` (by year covered), per language. Choosing an attribute fills
 the item dropdown with the distinct values seen for it; choosing an item
-draws a Plotly bar chart of count by year, styled after the original ggplot
-(`#0b5394` bars, bold blue title, vertical year labels). The mode bar is
-trimmed to the PNG download at 1920×720. The download button writes the
-plotted rows as CSV with the same bilingual headers the Shiny app used.
-
-Plotly (~380 KB gzipped) is a separate chunk imported on the first visit to
-the tab.
+draws a bar chart of count by year, styled after the original ggplot
+(`#0b5394` bars, bold blue title, boxed axes with gridlines, vertical year
+labels; every label is shown unless they would overlap). `barchart.js` draws
+it as plain SVG sized to the window, with a hover label for each bar; it
+replaced Plotly, which was 377 KB compressed for this one chart. "Download
+the data" writes the plotted rows as CSV with the same bilingual headers the
+Shiny app used; "Download the chart" renders the same chart at 1920×720 and
+saves it as a PNG.
 
 ### Documentation and About
 
@@ -255,8 +265,10 @@ is shown.
 
 The EN/FR switch in the header:
 
-1. downloads the other language's parquet if it has not been loaded yet
-   (the overlay reappears with progress);
+1. uses the other language's table, which is normally already built: once
+   the engine is ready and the browser is idle, `main.js` downloads and builds
+   it in the background (skipped when the visitor has turned on data saving).
+   If it is not ready yet, the overlay reappears with download progress;
 2. calls `i18n.setLang()`, which stores the choice, refreshes every
    `data-i18n` / `data-i18n-col` node, and dispatches a `langchange` event;
 3. each tab module listens for that event and starts over against the other
@@ -328,5 +340,5 @@ and is not needed for this site.
 `npm run build`, then `actions/deploy-pages`. The repository's Pages source
 is set to "GitHub Actions". The parquet files are committed directly (they
 are small, and Pages cannot serve Git LFS objects). GitHub Pages compresses
-the wasm and parquet assets with gzip; the app fetches data files with
+the self-hosted assets with gzip; the app fetches data files with
 `cache: 'no-cache'` so a data update is picked up on the next visit.

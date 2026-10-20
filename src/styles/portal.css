@@ -126,7 +126,22 @@
 .portal-viz-grid .portal-intro { margin: 0; }
 .portal-viz-selectors { display: grid; gap: 8px; }
 .portal-vfield { display: grid; grid-template-columns: 190px minmax(0, 1fr); align-items: center; gap: 12px; }
-.portal-viz-download { align-self: center; }
+.portal-viz-download { align-self: center; display: grid; gap: 8px; }
+
+/* Chart (barchart.js) and its hover label */
+.portal-plot-wrap { position: relative; }
+.portal-plot svg { display: block; }
+.portal-plot .portal-bar:hover { fill: var(--blue-dark); }
+.portal-plot-tip {
+  position: absolute;
+  pointer-events: none;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--blue);
+  color: #fff;
+  font: 600 12.5px/1.4 var(--font-ui);
+  white-space: nowrap;
+}
 @media (max-width: 1000px) {
   .portal-viz-grid { grid-template-columns: minmax(0, 1fr); }
 }

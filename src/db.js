@@ -14,13 +14,18 @@
  * makes query() wait until the first table exists, so the interface can be
  * built (and show the opening snapshot) while the engine is still loading.
  *
+ * The engine itself (about 7 MB compressed) is loaded from jsDelivr, pinned
+ * to the exact version installed here.  jsDelivr serves it Brotli-compressed
+ * (about 1 MB smaller than GitHub Pages' gzip) and lets browsers cache it for
+ * a year.  If jsDelivr cannot be reached, the self-hosted copy in dist/assets
+ * is used instead.
+ *
  * Tables are named inventory_en / inventory_fr, exactly as in the R app, so
  * the SQL strings in sql.js are unchanged from the Shiny modules.
  */
 import * as duckdb from '@duckdb/duckdb-wasm';
-// Vite's ?url suffix copies these files into dist/assets with hashed names and
-// gives us their final URLs, so the worker and wasm are served same-origin
-// (no CDN, no cross-origin headers needed on GitHub Pages).
+// Self-hosted fallback: Vite's ?url suffix copies these files into
+// dist/assets with hashed names and gives us their final URLs.
 import mvpWasm from '@duckdb/duckdb-wasm/dist/duckdb-mvp.wasm?url';
 import mvpWorker from '@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js?url';
 import ehWasm from '@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url';
@@ -33,24 +38,54 @@ let engine = null;                 // promise: worker started, wasm instantiated
 let gate = Promise.resolve();      // query() waits on this (see holdQueriesUntil)
 const downloads = new Map();       // lang -> Promise<Uint8Array> of its parquet
 const loaded = new Map();          // lang -> Promise that resolves once its table exists
+const ready = new Set();           // langs whose table is built
 const searchText = new Map();      // lang -> Promise that resolves once search_text exists
+
+const LOCAL_BUNDLES = {
+  mvp: { mainModule: mvpWasm, mainWorker: mvpWorker },
+  eh: { mainModule: ehWasm, mainWorker: ehWorker },
+};
+
+/**
+ * Start one engine from a set of bundles.  "eh" = wasm exception handling
+ * (faster); "mvp" = fallback for old browsers; selectBundle() feature-detects
+ * and picks one.  The "coi" (multi-threaded) bundle is never chosen here: it
+ * needs COOP/COEP response headers, which static hosting cannot set.
+ */
+async function startEngine(bundles, crossOrigin) {
+  const bundle = await duckdb.selectBundle(bundles);
+  // A worker script on another origin cannot be started directly; a small
+  // same-origin blob that imports it is the documented workaround.
+  const workerUrl = crossOrigin
+    ? URL.createObjectURL(new Blob([`importScripts("${bundle.mainWorker}");`], { type: 'text/javascript' }))
+    : bundle.mainWorker;
+  const worker = new Worker(workerUrl);
+  const instance = new duckdb.AsyncDuckDB(new duckdb.ConsoleLogger(duckdb.LogLevel.WARNING), worker);
+  // If the worker script itself cannot load, instantiate() would never settle,
+  // so a worker 'error' event also counts as failure.
+  const failed = new Promise((_, reject) =>
+    worker.addEventListener('error', (e) => reject(new Error(`engine worker failed to load: ${e.message || bundle.mainWorker}`)), { once: true }));
+  try {
+    await Promise.race([instance.instantiate(bundle.mainModule, bundle.pthreadWorker), failed]);
+    return instance;
+  } catch (err) {
+    worker.terminate();
+    throw err;
+  } finally {
+    if (crossOrigin) URL.revokeObjectURL(workerUrl);
+  }
+}
 
 /** Start the worker, instantiate the wasm module, open a connection (once). */
 export function initDb() {
   if (!engine) {
     engine = (async () => {
-      // "eh" = wasm exception handling (faster); "mvp" = fallback for old browsers.
-      // selectBundle() feature-detects and picks one.  The "coi" (multi-threaded)
-      // bundle is deliberately omitted: it needs COOP/COEP response headers, which
-      // static hosting cannot set.
-      const bundle = await duckdb.selectBundle({
-        mvp: { mainModule: mvpWasm, mainWorker: mvpWorker },
-        eh: { mainModule: ehWasm, mainWorker: ehWorker },
-      });
-      const worker = new Worker(bundle.mainWorker);
-      const logger = new duckdb.ConsoleLogger(duckdb.LogLevel.WARNING);
-      db = new duckdb.AsyncDuckDB(logger, worker);
-      await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+      try {
+        db = await startEngine(duckdb.getJsDelivrBundles(), true);
+      } catch (err) {
+        console.warn('Could not load the engine from jsDelivr; using the self-hosted copy.', err);
+        db = await startEngine(LOCAL_BUNDLES, false);
+      }
       // COUNT(*) is a BIGINT; ask DuckDB to hand it back as a JS number, not a BigInt.
       await db.open({ query: { castBigIntToDouble: true } });
       conn = await db.connect();
@@ -63,8 +98,9 @@ export function initDb() {
  * fetch() with a byte-progress callback so the overlay can show a counter.
  * Falls back to a plain arrayBuffer() when streaming is unavailable.
  */
-async function fetchBytes(url, onProgress) {
-  const res = await fetch(url, { cache: 'no-cache' }); // revalidate: data may change between deploys
+async function fetchBytes(url, onProgress, priority = 'auto') {
+  // cache: 'no-cache' revalidates, since data may change between deploys.
+  const res = await fetch(url, { cache: 'no-cache', priority });
   if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
   const total = Number(res.headers.get('Content-Length')) || 0;
   if (!res.body || !onProgress) return new Uint8Array(await res.arrayBuffer());
@@ -85,11 +121,15 @@ async function fetchBytes(url, onProgress) {
   return out;
 }
 
-/** Start downloading a language's parquet without waiting for the engine (once). */
-export function prefetchTable(lang, onProgress) {
+/**
+ * Start downloading a language's parquet without waiting for the engine (once).
+ * background: true asks the browser for a low-priority fetch.
+ */
+export function prefetchTable(lang, onProgress, { background = false } = {}) {
   if (!downloads.has(lang)) {
     const url = `${import.meta.env.BASE_URL}data/${tableFor(lang)}.parquet`;
-    downloads.set(lang, fetchBytes(url, onProgress).catch((err) => { downloads.delete(lang); throw err; }));
+    downloads.set(lang, fetchBytes(url, onProgress, background ? 'low' : 'auto')
+      .catch((err) => { downloads.delete(lang); throw err; }));
   }
   return downloads.get(lang);
 }
@@ -99,12 +139,12 @@ export function prefetchTable(lang, onProgress) {
  * calls while a download is in flight all await the same promise.  On failure
  * the entry is removed so a later call can retry.
  */
-export function ensureTable(lang, onProgress) {
+export function ensureTable(lang, onProgress, { background = false } = {}) {
   const tbl = tableFor(lang);
   if (!loaded.has(lang)) {
     loaded.set(lang, (async () => {
       // Engine and parquet download in parallel; build once both are here.
-      const [buf] = await Promise.all([prefetchTable(lang, onProgress), initDb()]);
+      const [buf] = await Promise.all([prefetchTable(lang, onProgress, { background }), initDb()]);
       const fname = `${tbl}.parquet`;
       // Expose the bytes to DuckDB's virtual file system, copy them into a
       // real table, then drop the file so the parquet isn't held twice.
@@ -112,9 +152,15 @@ export function ensureTable(lang, onProgress) {
       await conn.query(`CREATE TABLE ${tbl} AS SELECT * FROM read_parquet('${fname}')`);
       await db.dropFile(fname);
       downloads.delete(lang); // the bytes are in the table now
+      ready.add(lang);
     })().catch((err) => { loaded.delete(lang); throw err; }));
   }
   return loaded.get(lang);
+}
+
+/** True once inventory_<lang> has been built (no download or build pending). */
+export function hasTable(lang) {
+  return ready.has(lang);
 }
 
 /**

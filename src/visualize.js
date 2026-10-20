@@ -9,15 +9,17 @@
  *     yearCov: { … } }
  * where yearPub counts by year of publication and yearCov by year covered.
  *
- * Plotly (≈380 KB gzipped) and the JSON are only loaded the first time the
- * tab is opened.
+ * The chart is plain SVG drawn by barchart.js (no charting library), and
+ * the JSON is only loaded the first time the tab is opened.  Two buttons
+ * download the plotted figures (CSV) and the chart itself (PNG, 1920 × 720).
  */
 import { el, csvCell, downloadBlob, escapeHtml } from './util.js';
-import { getMeta, lang, tr, colLabel } from './i18n.js';
+import { getMeta, lang, tr, colLabel, fmtNumber } from './i18n.js';
+import { barChartSvg, svgToPngBlob } from './barchart.js';
 
 export function createVisualize({ panel }) {
-  let Plotly = null;   // set after the lazy import
   let counts = null;   // parsed viz_counts.json
+  let spec = null;     // what the chart currently shows (see draw())
   let ready = null;    // promise for the one-time load
   const state = { attr: '', item: '', time: 'itemYearsCovered' };
 
@@ -26,7 +28,9 @@ export function createVisualize({ panel }) {
   const itemSel = el('select', { id: 'viz-item', class: 'form-control', disabled: true });
   const radios = el('div', { class: 'portal-radio-group' });
   const dl = el('button', { type: 'button', class: 'btn portal-btn-primary portal-dl-btn', disabled: true });
+  const dlPng = el('button', { type: 'button', class: 'btn portal-dl-btn', disabled: true });
   const plotEl = el('div', { class: 'portal-plot', id: 'viz-plot' });
+  const tip = el('div', { class: 'portal-plot-tip', hidden: true, role: 'status' });
 
   const header = el('div', { class: 'portal-filters portal-viz-panel' }, [
     el('div', { class: 'portal-viz-grid' }, [
@@ -36,10 +40,10 @@ export function createVisualize({ panel }) {
         el('div', { class: 'portal-vfield' }, [el('label', { class: 'portal-label', for: 'viz-item', 'data-i18n': 'viz_item' }), itemSel]),
         el('div', { class: 'portal-vfield' }, [el('span', { class: 'portal-label', 'data-i18n': 'viz_time' }), radios]),
       ]),
-      el('div', { class: 'portal-viz-download' }, [dl]),
+      el('div', { class: 'portal-viz-download' }, [dl, dlPng]),
     ]),
   ]);
-  panel.append(header, el('div', { class: 'portal-body' }, [plotEl]));
+  panel.append(header, el('div', { class: 'portal-body' }, [el('div', { class: 'portal-plot-wrap' }, [plotEl, tip])]));
 
   // Options are ordered by their translated label, as sort(tr(...)) did in R.
   function sortedByLabel(keys) {
@@ -81,6 +85,7 @@ export function createVisualize({ panel }) {
     // label_csv carries line-break markup for the old two-line button; flatten it.
     const text = tr('label_csv').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
     dl.innerHTML = `<span aria-hidden="true">&#8595;</span> ${escapeHtml(text)}`;
+    dlPng.innerHTML = `<span aria-hidden="true">&#8595;</span> ${escapeHtml(tr('download_chart'))}`;
   }
 
   // Rows for the current attribute/item/time selection, as objects.
@@ -92,41 +97,51 @@ export function createVisualize({ panel }) {
       .map((r) => ({ Year: r[0] ?? 'N/A', name: r[1], value: r[2], Count: r[3] }));
   }
 
-  // Redraw (or clear) the chart.  Styling follows the ggplot theme_bw() look
-  // of the original: portal-blue bars, bold blue title "Attribute | Item",
-  // vertical year labels, boxed axes.  The mode bar is trimmed to the PNG
-  // download button, at the same 1920×720 size.
+  // Redraw (or clear) the chart for the current selection.  Years are strings
+  // ("1870-71"); ggplot sorted them alphabetically, and so does this.
   function draw() {
     const rows = plotRows();
-    dl.disabled = !rows.length;
-    if (!Plotly) return;
-    if (!rows.length) { Plotly.purge(plotEl); return; }
-    const attrLabel = colLabel(state.attr);
-    Plotly.react(plotEl, [{
-      type: 'bar',
-      x: rows.map((r) => r.Year),
-      y: rows.map((r) => r.Count),
-      marker: { color: '#0b5394' },
-      hovertemplate: '%{x}: %{y}<extra></extra>',
-    }], {
-      title: { text: `${attrLabel} | ${state.item}`, font: { family: "'Source Serif 4', Georgia, serif", size: 19, weight: 600, color: '#0b5394' }, x: 0.02 },
-      // Years are strings ("1870-71"); ggplot sorted them alphabetically, hence category ascending.
-      xaxis: { title: { text: colLabel(state.time) }, type: 'category', categoryorder: 'category ascending', tickangle: -90, showline: true, mirror: true, linecolor: '#333', gridcolor: '#e5e5e5' },
-      yaxis: { title: { text: tr('viz_yaxis') }, showline: true, mirror: true, linecolor: '#333', gridcolor: '#e5e5e5' },
-      font: { family: "'Source Sans 3', 'Helvetica Neue', Arial, sans-serif", size: 13 },
-      plot_bgcolor: '#ffffff',
-      paper_bgcolor: '#ffffff',
-      showlegend: false,
-      margin: { t: 60, b: 120, l: 70, r: 20 },
-      autosize: true,
-    }, {
-      responsive: true,
-      displaylogo: false,
-      displayModeBar: true,
-      modeBarButtonsToRemove: ['zoomIn2d', 'zoomOut2d', 'select2d', 'pan2d', 'lasso2d',
-        'hoverClosestCartesian', 'hoverCompareCartesian', 'autoScale2d', 'resetScale2d', 'zoom2d'],
-      toImageButtonOptions: { format: 'png', width: 1920, height: 720, filename: attrLabel },
-    });
+    dl.disabled = dlPng.disabled = !rows.length;
+    tip.hidden = true;
+    if (!rows.length) { spec = null; plotEl.innerHTML = ''; return; }
+    const sorted = [...rows].sort((a, b) => (String(a.Year) < String(b.Year) ? -1 : String(a.Year) > String(b.Year) ? 1 : 0));
+    spec = {
+      title: `${colLabel(state.attr)} | ${state.item}`,
+      xLabel: colLabel(state.time),
+      yLabel: tr('viz_yaxis'),
+      categories: sorted.map((r) => String(r.Year)),
+      values: sorted.map((r) => r.Count),
+      formatNumber: fmtNumber,
+    };
+    render();
+  }
+
+  // Draw spec at the container's current size.
+  function render() {
+    if (!spec || !plotEl.clientWidth) return;
+    plotEl.innerHTML = barChartSvg({ ...spec, width: plotEl.clientWidth, height: plotEl.clientHeight });
+  }
+  new ResizeObserver(() => render()).observe(plotEl);
+
+  // Hover a bar for "year: count".
+  plotEl.addEventListener('mousemove', (e) => {
+    const bar = e.target.closest('.portal-bar');
+    if (!bar || !spec) { tip.hidden = true; return; }
+    const i = Number(bar.dataset.i);
+    tip.textContent = `${spec.categories[i]}: ${fmtNumber(spec.values[i])}`;
+    const box = plotEl.getBoundingClientRect();
+    tip.style.left = `${e.clientX - box.left + 12}px`;
+    tip.style.top = `${e.clientY - box.top - 30}px`;
+    tip.hidden = false;
+  });
+  plotEl.addEventListener('mouseleave', () => { tip.hidden = true; });
+
+  // PNG of the chart at 1920 × 720, as Plotly's download button produced.
+  async function downloadPng() {
+    if (!spec) return;
+    const blob = await svgToPngBlob(barChartSvg({ ...spec, width: 1920, height: 720 }), 1920, 720);
+    const name = `${colLabel(state.attr)}_${state.item}`.replace(/[^A-Za-z0-9_-]/g, '_') + '.png';
+    downloadBlob(blob, name, 'image/png');
   }
 
   // CSV of the plotted data with the same bilingual headers as the Shiny
@@ -146,16 +161,13 @@ export function createVisualize({ panel }) {
   attrSel.addEventListener('change', () => { state.attr = attrSel.value; state.item = ''; fillItems(); draw(); });
   itemSel.addEventListener('change', () => { state.item = itemSel.value; draw(); });
   dl.addEventListener('click', downloadCsv);
+  dlPng.addEventListener('click', () => downloadPng().catch(console.error));
 
-  /** Called by the router each time the tab is shown; loads Plotly + data once. */
+  /** Called by the router each time the tab is shown; loads the counts once. */
   async function activate() {
     if (!ready) {
       ready = (async () => {
-        const [mod, res] = await Promise.all([
-          import('plotly.js-basic-dist-min'), // separate chunk, fetched on demand
-          fetch(`${import.meta.env.BASE_URL}data/viz_counts.json`, { cache: 'no-cache' }),
-        ]);
-        Plotly = mod.default ?? mod;
+        const res = await fetch(`${import.meta.env.BASE_URL}data/viz_counts.json`, { cache: 'no-cache' });
         counts = await res.json();
       })();
     }

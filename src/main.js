@@ -28,7 +28,7 @@ import './styles/base.css';
 import './styles/portal.css';
 import { initI18n, detectLang, applyStatic, setLang, lang, tr } from './i18n.js';
 import { initRouter } from './router.js';
-import { initDb, ensureTable, ensureSearchText, holdQueriesUntil, query } from './db.js';
+import { initDb, ensureTable, ensureSearchText, hasTable, holdQueriesUntil, query } from './db.js';
 import { ORDER_BY, buildKwWhere, tableFor } from './sql.js';
 import { createCvSearch } from './search_cv.js';
 import { createKwSearch } from './search_kw.js';
@@ -150,6 +150,15 @@ async function boot() {
   }
   showOverlay(false);
 
+  // Once the engine is ready and the browser is idle, load the other
+  // language's table in the background (low-priority download) so the EN | FR
+  // switch is instant.  Skipped when the visitor has asked to save data.
+  const other = startLang === 'en' ? 'fr' : 'en';
+  const whenIdle = (fn) => (window.requestIdleCallback ? requestIdleCallback(fn, { timeout: 5000 }) : setTimeout(fn, 1000));
+  if (!navigator.connection?.saveData) {
+    engineReady.then(() => whenIdle(() => ensureTable(other, null, { background: true }).catch(() => {})), () => {});
+  }
+
   // If the engine fails after the snapshot is on screen, say so.
   engineReady.catch((err) => {
     console.error(err);
@@ -160,7 +169,7 @@ async function boot() {
 
   // 5. Tabs are driven by the URL hash so they are bookmarkable.  The router
   //    calls this on every change; the tab modules are lazy where it matters
-  //    (Plotly and the markdown pages only load on first visit).
+  //    (the chart data and the markdown pages only load on first visit).
   initRouter((tab, prev) => {
     // Switching between the two search tabs clears the other one (app_server.R).
     if (tab === 'search' && prev === 'search_kw') kw.reset();
@@ -177,7 +186,8 @@ async function boot() {
   async function switchLang(next) {
     if (next === lang()) return;
     langButtons.forEach((b) => { b.disabled = true; });
-    showOverlay(true);
+    // The overlay is only needed if the other table is not built yet.
+    if (!hasTable(next)) showOverlay(true);
     try {
       await loadLang(next);
       setLang(next); // updates static labels and dispatches 'langchange'
