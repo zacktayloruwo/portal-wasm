@@ -101,6 +101,13 @@ src/
   styles/        base.css (replaces Bootstrap/reactable), portal.css (port of custom.css)
 ```
 
+Typography follows treatment A ("Catalogue") from the design review: record
+titles, the site title and headings are set in Source Serif 4, and everything
+else in Source Sans 3. Both fonts are self-hosted through the `@fontsource`
+packages imported at the top of `main.js` (no requests to Google), and the
+two families are named once, as `--font-display` and `--font-ui` in
+`base.css`.
+
 Each file starts with a comment describing its role; the notes below cover
 the logic that spans files.
 

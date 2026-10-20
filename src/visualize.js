@@ -105,11 +105,11 @@ export function createVisualize({ panel }) {
       marker: { color: '#0b5394' },
       hovertemplate: '%{x}: %{y}<extra></extra>',
     }], {
-      title: { text: `<b>${attrLabel} | ${state.item}</b>`, font: { family: 'Arial', size: 18, color: '#0b5394' }, x: 0.02 },
+      title: { text: `${attrLabel} | ${state.item}`, font: { family: "'Source Serif 4', Georgia, serif", size: 19, weight: 600, color: '#0b5394' }, x: 0.02 },
       // Years are strings ("1870-71"); ggplot sorted them alphabetically, hence category ascending.
       xaxis: { title: { text: colLabel(state.time) }, type: 'category', categoryorder: 'category ascending', tickangle: -90, showline: true, mirror: true, linecolor: '#333', gridcolor: '#e5e5e5' },
       yaxis: { title: { text: tr('viz_yaxis') }, showline: true, mirror: true, linecolor: '#333', gridcolor: '#e5e5e5' },
-      font: { family: 'Arial', size: 13 },
+      font: { family: "'Source Sans 3', 'Helvetica Neue', Arial, sans-serif", size: 13 },
       plot_bgcolor: '#ffffff',
       paper_bgcolor: '#ffffff',
       showlegend: false,

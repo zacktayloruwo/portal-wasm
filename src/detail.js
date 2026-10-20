@@ -41,7 +41,7 @@ export function createDetailView({ container, onBack }) {
       const label = c[l] ?? c.en;
       // The label carries its definition in data-tippy-content; tooltips.js turns it into a popup.
       return `<tr><th scope="row" class="portal-detail-key"><span data-tippy-content="${escapeAttr(tip)}">${escapeHtml(label)}</span></th>` +
-             `<td class="portal-detail-value">${valueHtml(c)}</td></tr>`;
+             `<td class="portal-detail-value${c.key === 'itemTitle' ? ' portal-detail-title' : ''}">${valueHtml(c)}</td></tr>`;
     }).join('') + '</tbody></table>';
     initTippy(host);
   }

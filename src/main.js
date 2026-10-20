@@ -12,6 +12,14 @@
  * switch and the "switching between search tabs resets the other one" rule
  * that the Shiny app implemented in app_server.R.
  */
+// Self-hosted fonts (treatment A): Source Sans 3 for the interface,
+// Source Serif 4 for titles and headings. Each CSS file declares the weight
+// with unicode-range subsets, so browsers fetch only the Latin files needed.
+import '@fontsource/source-sans-3/400.css';
+import '@fontsource/source-sans-3/400-italic.css';
+import '@fontsource/source-sans-3/600.css';
+import '@fontsource/source-sans-3/700.css';
+import '@fontsource/source-serif-4/600.css';
 import './styles/base.css';
 import './styles/portal.css';
 import { initI18n, applyStatic, setLang, lang, tr } from './i18n.js';
