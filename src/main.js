@@ -47,8 +47,8 @@ async function loadLang(l) {
 
 /**
  * Optional self-test, enabled by adding ?selftest to the URL.
- * data/selftest.json is written by dev/verify_web_export.R in the R project and
- * holds SQL + parameters + the counts/ids that R's DuckDB returned.  Running
+ * data/selftest.json is written by prep/prep_db.R and holds SQL, parameters,
+ * and the counts/ids that R's DuckDB returned.  Running
  * the same statements through DuckDB-WASM proves the two engines agree on the
  * exported parquet.  Results go to console.table() and window.__selftest.
  */
@@ -75,7 +75,7 @@ async function boot() {
   const meta = await (await fetch(`${import.meta.env.BASE_URL}data/meta.json`, { cache: 'no-cache' })).json();
   initI18n(meta);
 
-  // Footer strings come from R/utils_global.R via meta.json.
+  // Footer strings come from the settings block in prep/prep_db.R via meta.json.
   document.getElementById('footer-version').textContent = meta.version;
   document.getElementById('footer-db-date').textContent = meta.db_date;
   document.getElementById('footer-app-date').textContent = meta.app_date;

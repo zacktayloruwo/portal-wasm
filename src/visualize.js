@@ -3,8 +3,8 @@
  *
  * Draws one bar chart: number of records per year for a chosen attribute
  * (e.g. Content type) and value within it (e.g. Census returns).  The numbers
- * do not come from the database: they are pre-aggregated in the R project
- * (viz_counts in app_data.RData) and exported to data/viz_counts.json as
+ * do not come from the database: they are pre-aggregated by prep/prep_db.R
+ * and written to data/viz_counts.json as
  *   { yearPub: { en: [[Year, attributeKey, value, Count], …], fr: […] },
  *     yearCov: { … } }
  * where yearPub counts by year of publication and yearCov by year covered.
