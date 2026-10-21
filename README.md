@@ -223,12 +223,18 @@ full-text index or ranking; this is a substring match, as in the R app.
 count, the sort order, rows per page (25 by default) and paging; a second
 pager follows the results when there is more than one page. Columns are the
 ones flagged `visible_results` in `prep/namestable.xlsx` (passed through
-`meta.json`), and both search tabs show the same columns. Headers stay on one
-line; Census Year(s) Covered by Item is shortened to "Years Covered" in the
-table header only. Title and Name of Census share the same width and wrap.
+`meta.json`), and both search tabs show the same columns. Census Year(s)
+Covered by Item is shortened to "Years Covered" in the table header only.
+The table always fits its box: `WIDTHS` in `results.js` gives each column a
+relative share (Title and Name of Census the largest, and equal), the shares
+of the visible columns are scaled to 100% in a `<colgroup>`, and
+`table-layout: fixed` keeps them, so columns shrink proportionally and their
+contents wrap. Below 1200 px, where some words are wider than their column,
+cells other than titles hyphenate in the page's language; link chips break at
+the dots of their host names instead.
 
 Long list cells are summarised so that one record cannot fill the screen:
-years covered show as a range with "+64 more" for the years in between, and other lists
+years covered show as a range ("1665-6 → 1870-71") with "See all years", and other lists
 show their first two values and "+19 more" (formats show up to five). The
 buttons expand the cell in place. Every value is HTML-escaped. `links.js`
 rebuilds the Links column as `<a class="accessbutton">domain</a>` chips side

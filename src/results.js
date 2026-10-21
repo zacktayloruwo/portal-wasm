@@ -10,9 +10,10 @@
  * meta.columns[].visible_results, set in prep/namestable.xlsx.
  *
  * Long list cells are summarised so one record cannot fill the screen:
- * years covered become a range ("1665-6 → 1870-71") with "+64 more" for the
- * years in between, and other lists show their first two values and "+19 more".  Those
- * buttons expand the cell in place.  Below 900 px wide the table becomes a
+ * years covered become a range ("1665-6 → 1870-71") with "See all years",
+ * and other lists show their first two values and "+19 more".  Those buttons
+ * expand the cell in place.  The table always fits its box: columns share the
+ * width in fixed proportions (WIDTHS) and their contents wrap.  Below 900 px wide the table becomes a
  * list of records, each with its title, one line of details and its subjects.
  */
 import { el, escapeHtml, listToArray } from './util.js';
@@ -21,6 +22,14 @@ import { getMeta, tr, colLabel, fmtNumber } from './i18n.js';
 import { PAGE_SIZES } from './sql.js';
 
 const NARROW = window.matchMedia('(max-width: 900px)');
+
+// Relative column widths.  Only the visible columns are used, scaled to add up
+// to 100%, so the table shrinks proportionally instead of overflowing.
+const WIDTHS = {
+  itemTitle: 16, itemCensusName: 16, itemType: 9.5, itemYearsCovered: 9, itemSubject: 11,
+  itemGeoCoverage: 10, itemGeoUnits: 9, itemFormat: 8, access_link: 12,
+};
+const DEFAULT_WIDTH = 9;
 
 // Header text: the long years-covered name is shortened in the table only.
 const headerLabel = (key) => (key === 'itemYearsCovered' ? tr('short_itemYearsCovered') : colLabel(key));
@@ -38,13 +47,14 @@ function yearsCell(v) {
   const a = listToArray(v).filter((x) => x != null);
   // Each year stays on one line ("1665-6" must not break at the hyphen).
   if (a.length <= 3) return a.map((y) => `<span class="yr">${escapeHtml(y)}</span>`).join(', ');
-  // The range shows the first and last years; "+N more" counts the distinct years between.
+  // The range shows the first and last years; the button reveals all of them.
+  // Each year stays whole, but the range may break after the arrow.
   const hidden = new Set(a).size - new Set([a[0], a[a.length - 1]]).size;
   if (hidden <= 0) return escapeHtml([...new Set(a)].join(', '));
   return expandable(
-    `<span class="yr-range">${escapeHtml(a[0])} → ${escapeHtml(a[a.length - 1])}</span>`,
+    `<span class="yr-range"><span class="yr">${escapeHtml(a[0])}</span> → <span class="yr">${escapeHtml(a[a.length - 1])}</span></span>`,
     escapeHtml(a.join(', ')),
-    tr('more_n', { n: hidden }),
+    tr('see_all_years'),
     'xp-years',
   );
 }
@@ -159,7 +169,10 @@ export function createResultsView({ container, onOpen, onPage, onPageSize, pageS
     const tbody = rows.length
       ? rows.map((row, i) => `<tr data-idx="${i}">${cols.map((c) => `<td class="col-${c.key}">${valueHtml(c, row)}</td>`).join('')}</tr>`).join('')
       : `<tr><td class="portal-no-data" colspan="${cols.length}">${escapeHtml(tr('no_entries'))}</td></tr>`;
-    return `<table class="portal-table">${thead}<tbody>${tbody}</tbody></table>`;
+    const total = cols.reduce((s, c) => s + (WIDTHS[c.key] ?? DEFAULT_WIDTH), 0);
+    const colgroup = `<colgroup>${cols.map((c) =>
+      `<col style="width:${(100 * (WIDTHS[c.key] ?? DEFAULT_WIDTH) / total).toFixed(2)}%">`).join('')}</colgroup>`;
+    return `<table class="portal-table">${colgroup}${thead}<tbody>${tbody}</tbody></table>`;
   }
 
   function listHtml(rows) {

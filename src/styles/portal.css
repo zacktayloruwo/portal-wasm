@@ -83,7 +83,7 @@
 }
 .xp-btn:hover { text-decoration: underline; }
 .xp-btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; border-radius: 2px; }
-.yr-range, .yr { white-space: nowrap; }
+.yr { white-space: nowrap; }
 
 /* ── Narrow screens: results as a list of records ───────────────────────── */
 .portal-list { border-top: 2px solid var(--rule-strong); }

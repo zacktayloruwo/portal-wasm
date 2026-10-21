@@ -31,6 +31,7 @@ const STATIC = {
   // summarised list cells
   more_n: { en: '+{n} more', fr: '+{n} autres' },
   show_less: { en: 'Show less', fr: 'Moins' },
+  see_all_years: { en: 'See all years', fr: 'Voir toutes les années' },
   short_itemYearsCovered: { en: 'Years Covered', fr: 'Années couvertes' },
   link_n: { en: 'Link {n}', fr: 'Lien {n}' },
   // keyword box

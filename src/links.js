@@ -13,8 +13,11 @@
 import { escapeAttr, escapeHtml, listToArray } from './util.js';
 import { tr } from './i18n.js';
 
+// Labels are often host names; <wbr> after each dot lets a narrow column
+// break "odesi.scholarsportal.info" between its parts rather than mid-word.
+const labelHtml = (text) => escapeHtml(text).replace(/\./g, '.<wbr>');
 const chip = (href, text) =>
-  `<a href="${escapeAttr(href)}" class="accessbutton" target="_blank" rel="noopener">${escapeHtml(text)}</a>`;
+  `<a href="${escapeAttr(href)}" class="accessbutton" target="_blank" rel="noopener">${labelHtml(text)}</a>`;
 
 export function accessLinksHtml(urls, labels, { group = false } = {}) {
   const l = listToArray(labels);
@@ -36,7 +39,7 @@ export function accessLinksHtml(urls, labels, { group = false } = {}) {
   }
   return [...bySite].map(([label, list]) => (list.length === 1
     ? chip(list[0].href, label)
-    : `<details class="link-group"><summary class="accessbutton">${escapeHtml(label)} <b>×${list.length}</b></summary>` +
+    : `<details class="link-group"><summary class="accessbutton">${labelHtml(label)} <b>×${list.length}</b></summary>` +
       `<span class="link-group-items">${list.map((it, i) => chip(it.href, tr('link_n', { n: i + 1 }))).join('')}</span></details>`
   )).join('');
 }
