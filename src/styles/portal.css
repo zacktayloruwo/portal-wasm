@@ -95,7 +95,9 @@
   border-bottom: 1px solid var(--rule);
 }
 .portal-rec-title { margin: 0; font-size: inherit; grid-column: 1; }
-.portal-rec-links { grid-column: 2; grid-row: 1 / span 3; max-width: 260px; text-align: right; }
+/* min-width beats max-width: the column grows past 260 px for a wider chip
+   rather than letting it overflow (chips never wrap). */
+.portal-rec-links { grid-column: 2; grid-row: 1 / span 3; max-width: 260px; min-width: min-content; text-align: right; }
 /* Details as wrapping label–value items, so each pair stays together. */
 .portal-rec-meta { margin: 0; grid-column: 1; display: flex; flex-wrap: wrap; gap: 2px 18px; color: var(--muted); font-size: 13.5px; }
 .portal-rec-meta i { font-style: normal; color: var(--faint); margin-right: 3px; }

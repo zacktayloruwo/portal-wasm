@@ -229,9 +229,13 @@ The table always fits its box: `WIDTHS` in `results.js` gives each column a
 relative share (Title and Name of Census the largest, and equal), the shares
 of the visible columns are scaled to 100% in a `<colgroup>`, and
 `table-layout: fixed` keeps them, so columns shrink proportionally and their
-contents wrap. Below 1200 px, where some words are wider than their column,
-cells other than titles hyphenate in the page's language; link chips break at
-the dots of their host names instead.
+contents wrap. Link chips never break: the Links column is kept at least as
+wide as the widest chip in the whole table (measured once per language by
+drawing every distinct chip off-screen), and the other columns share what is
+left. Below 1200 px, where some words are wider than their column, cells
+other than titles hyphenate. Hyphenation is the browser's own (CSS
+`hyphens: auto`), which uses French or English rules from the page's `lang`
+attribute, set by the language switch.
 
 Long list cells are summarised so that one record cannot fill the screen:
 years covered show as a range ("1665-6 → 1870-71") with "See all years", and other lists

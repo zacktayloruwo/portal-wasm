@@ -305,16 +305,16 @@ h3 { font-size: 21px; margin: 18px 0 8px; }
 .portal-table tbody tr:hover { background: var(--blue-hover); }
 .portal-no-data { text-align: center; color: var(--faint); padding: 16px; }
 
-/* Link chips may wrap inside a narrow Links column. */
-.portal-table .accessbutton { white-space: normal; max-width: 100%; }
+/* Grouped chips stack under each other; chips themselves never wrap
+   (results.js keeps the Links column wide enough for the widest one). */
 .portal-table .link-group { display: block; }
+.portal-chip-probe { position: absolute; left: -9999px; top: 0; visibility: hidden; white-space: nowrap; }
 /* Between the list-view breakpoint and laptop width some words are wider
    than their column; hyphenate them (in the page's language) rather than
    letting them split at an arbitrary letter.  Titles are left whole. */
 @media (max-width: 1199px) {
   .portal-table th,
   .portal-table td:not(.col-itemTitle) { hyphens: auto; }
-  .portal-table .accessbutton { hyphens: manual; }   /* host names break at dots instead */
 }
 
 /* ── Record view ────────────────────────────────────────────────────────── */

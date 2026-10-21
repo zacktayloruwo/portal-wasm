@@ -13,13 +13,16 @@
  * years covered become a range ("1665-6 → 1870-71") with "See all years",
  * and other lists show their first two values and "+19 more".  Those buttons
  * expand the cell in place.  The table always fits its box: columns share the
- * width in fixed proportions (WIDTHS) and their contents wrap.  Below 900 px wide the table becomes a
+ * width in fixed proportions (WIDTHS) and their contents wrap, except link
+ * chips, which never break: the Links column is kept at least as wide as the
+ * widest chip in the whole table (see sizeColumns).  Below 900 px wide the table becomes a
  * list of records, each with its title, one line of details and its subjects.
  */
 import { el, escapeHtml, listToArray } from './util.js';
-import { accessLinksHtml } from './links.js';
-import { getMeta, tr, colLabel, fmtNumber } from './i18n.js';
-import { PAGE_SIZES } from './sql.js';
+import { accessLinksHtml, chipLabelHtml } from './links.js';
+import { getMeta, tr, colLabel, fmtNumber, lang } from './i18n.js';
+import { PAGE_SIZES, tableFor } from './sql.js';
+import { query } from './db.js';
 
 const NARROW = window.matchMedia('(max-width: 900px)');
 
@@ -30,6 +33,34 @@ const WIDTHS = {
   itemGeoCoverage: 10, itemGeoUnits: 9, itemFormat: 8, access_link: 12,
 };
 const DEFAULT_WIDTH = 9;
+const CELL_PAD = 20;  // td padding, left + right
+const CHIP_GAP = 4;   // .accessbutton right margin
+
+// Width in px of the widest link chip anywhere in a language's table,
+// including grouped chips ("site ×3").  Measured once per language by drawing
+// every distinct chip off-screen; shared by both search tabs.
+const widestChip = new Map();  // lang -> Promise<number>
+const chipWidth = new Map();   // lang -> number, once known
+function measureWidestChip(l) {
+  if (!widestChip.has(l)) {
+    widestChip.set(l, (async () => {
+      const rows = await query(
+        `SELECT label, MAX(n) AS n FROM (SELECT id, label, COUNT(*) AS n FROM ` +
+        `(SELECT id, UNNEST(access_labels) AS label FROM ${tableFor(l)}) GROUP BY id, label) GROUP BY label`);
+      await document.fonts.ready;
+      const probe = el('div', {
+        class: 'portal-chip-probe', 'aria-hidden': 'true',
+        html: rows.map((r) => `<span class="accessbutton">${chipLabelHtml(r.label, r.n)}</span>`).join(''),
+      });
+      document.body.appendChild(probe);
+      const w = Math.max(0, ...[...probe.children].map((c) => c.getBoundingClientRect().width));
+      probe.remove();
+      chipWidth.set(l, w);
+      return w;
+    })().catch((err) => { widestChip.delete(l); throw err; }));
+  }
+  return widestChip.get(l);
+}
 
 // Header text: the long years-covered name is shortened in the table only.
 const headerLabel = (key) => (key === 'itemYearsCovered' ? tr('short_itemYearsCovered') : colLabel(key));
@@ -175,6 +206,34 @@ export function createResultsView({ container, onOpen, onPage, onPageSize, pageS
     return `<table class="portal-table">${colgroup}${thead}<tbody>${tbody}</tbody></table>`;
   }
 
+  /**
+   * Turn the colgroup's percentages into pixels so the Links column can have a
+   * floor: at least its share, and at least the widest chip (in the whole
+   * table once measured, else on this page).  The other columns split what is
+   * left in their usual proportions.
+   */
+  function sizeColumns() {
+    const table = host.querySelector('.portal-table');
+    const W = host.clientWidth;
+    if (!table || !W) return; // list view, or tab hidden (the observer re-runs it)
+    const cols = columns();
+    const weights = cols.map((c) => WIDTHS[c.key] ?? DEFAULT_WIDTH);
+    const total = weights.reduce((s, w) => s + w, 0);
+    const li = cols.findIndex((c) => c.key === 'access_link');
+    const px = weights.map((w) => (W * w) / total);
+    if (li >= 0) {
+      const onPage = [...table.querySelectorAll('td.col-access_link .accessbutton')]
+        .map((c) => c.getBoundingClientRect().width);
+      const need = Math.max(chipWidth.get(lang()) ?? 0, ...onPage) + CHIP_GAP + CELL_PAD;
+      if (need > px[li]) {
+        const rest = W - need;
+        weights.forEach((w, i) => { px[i] = i === li ? need : (rest * w) / (total - weights[li]); });
+      }
+    }
+    table.querySelectorAll('col').forEach((col, i) => { col.style.width = `${px[i].toFixed(1)}px`; });
+  }
+  new ResizeObserver(sizeColumns).observe(host);
+
   function listHtml(rows) {
     if (!rows.length) return `<p class="portal-no-data">${escapeHtml(tr('no_entries'))}</p>`;
     const meta = columns().filter((c) => !['itemTitle', 'itemSubject', 'access_link'].includes(c.key));
@@ -196,6 +255,9 @@ export function createResultsView({ container, onOpen, onPage, onPageSize, pageS
   function render({ rows, total, page, pageSize: size }) {
     last = { rows, total, page, pageSize: size };
     host.innerHTML = NARROW.matches ? listHtml(rows) : tableHtml(rows);
+    sizeColumns();
+    const l = lang();
+    if (!chipWidth.has(l)) measureWidestChip(l).then(() => { if (lang() === l) sizeColumns(); }).catch(() => {});
     const pages = Math.max(1, Math.ceil(total / size));
     count.innerHTML = `<b>${fmtNumber(total)}</b> ${escapeHtml(tr(total === 1 ? 'record' : 'records'))}` +
       `<span class="portal-count-sep" aria-hidden="true">·</span>${escapeHtml(tr('sorted_note'))}`;
