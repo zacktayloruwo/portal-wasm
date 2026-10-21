@@ -43,10 +43,10 @@ export const FACETS = [
 /**
  * Build the WHERE clause for the current facet selections.
  *
- * Fields are always ANDed together.  Within one field the All | Any control
+ * Fields are always ANDed together.  Within one field the AND | OR control
  * decides how *multiple selected values* combine:
- *   All (default) → list_has_all(col, [...])  item must contain every value
- *   Any           → list_has_any(col, [...])  item must contain at least one
+ *   AND (default) → list_has_all(col, [...])  item must contain every value
+ *   OR            → list_has_any(col, [...])  item must contain at least one
  * A single value uses list_has_any (the two are equivalent then).
  *
  * `exclude` drops one facet's own clause.  It is used when computing the
@@ -141,7 +141,7 @@ export function tokenise(raw) {
  * Build the WHERE clause for the keyword tab: one
  *   search_text LIKE '%' || ? || '%'
  * per term, joined with AND (every term must appear) or, when the control is
- * set to Any, wrapped in one OR group.  The term is bound as a parameter, so
+ * set to OR, wrapped in one OR group.  The term is bound as a parameter, so
  * quotes in it cannot break the statement.  % and _ inside a term still act
  * as LIKE wildcards, as in the R app.
  *

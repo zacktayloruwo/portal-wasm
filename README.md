@@ -123,7 +123,7 @@ src/
   sql.js         WHERE-clause builders, ORDER BY, tokeniser, accent folding
   i18n.js        tr(), colLabel(), applyStatic(), 'langchange' event
   router.js      hash ⇄ tab, panel visibility
-  facets.js      one facet row: label + Tom Select multi-select + All | Any
+  facets.js      one facet row: label + Tom Select multi-select + AND | OR
   search_cv.js   controlled-vocabulary tab controller (cascade + paging)
   search_kw.js   keyword tab controller
   results.js     results toolbar, table or record list, summarised cells, paging
@@ -150,7 +150,7 @@ the logic that spans files.
 ### Search by Controlled Vocabulary
 
 Five facets, each a row with the field name, a multi-select and an
-All | Any control, laid out in two columns: Subject, Name of Census and
+AND | OR control, laid out in two columns: Subject, Name of Census and
 Census Year(s) Covered by Item on the left; Geographic Units and Content Type
 in a narrower column on the right.
 An info glyph after a field name shows that field's definition on hover or
@@ -159,10 +159,10 @@ click; the text comes from `help_<field>` rows in
 `sql.buildCvWhere()` turns the selections into one `WHERE` clause:
 
 - Facets are always combined with `AND`.
-- Within a facet, All | Any decides how several selected values combine.
+- Within a facet, AND | OR decides how several selected values combine.
   Four of the five columns are lists, so the clause is
-  `list_has_all(col, [v1, v2])` (All, the default) or
-  `list_has_any(col, [v1, v2])` (Any). A single value always uses
+  `list_has_all(col, [v1, v2])` (AND, the default) or
+  `list_has_any(col, [v1, v2])` (OR). A single value always uses
   `list_has_any`. Name of Census is a scalar column and uses `IN (…)`.
 - Values are bound as prepared-statement parameters (`?`), never spliced into
   the SQL text. Column and table names come from fixed lists.
@@ -190,7 +190,7 @@ them. This replaces Shiny's reactive invalidation.
 
 ### Search by Keyword
 
-The text box is committed on Enter or the Search button; All | Any is read
+The text box is committed on Enter or the Search button; AND | OR is read
 live, so switching it re-runs the last search immediately.
 
 `sql.tokenise()` splits the text in two passes: anything in quotes
@@ -305,7 +305,7 @@ Intentional:
   URL-decoded them.
 - Row hover highlight is done in CSS instead of reactable.
 - The layout was compacted after a design review: one masthead for title,
-  tabs and language; field labels beside their boxes with All | Any in place
+  tabs and language; field labels beside their boxes with AND | OR in place
   of the AND/OR switches; a results toolbar; summarised list cells; 25 rows
   per page by default; one accent colour; the footer at the end of the page.
 - Results are sorted by the first year covered rather than by year of

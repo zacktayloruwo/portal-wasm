@@ -1,11 +1,11 @@
 /**
  * facets.js — one controlled-vocabulary filter, laid out as a single row:
  *
- *   Field name (i)   [ multi-select ..................... ]   [ All | Any ]
+ *   Field name (i)   [ multi-select ..................... ]   [ AND | OR ]
  *
  * The multi-select is Tom Select (the successor of the selectize.js widget the
- * Shiny app used).  All | Any replaces the old orange/green AND/OR switch:
- * All (the default) keeps items matching every selected value, Any keeps
+ * Shiny app used).  AND | OR replaces the old orange/green AND/OR switch:
+ * AND (the default) keeps items matching every selected value, OR keeps
  * items matching at least one.
  *
  * When meta.json has a translation named help_<key> (rows in
@@ -30,8 +30,8 @@ const INFO_ICON =
   '<circle cx="8" cy="4.7" r="1" fill="currentColor"/></svg>';
 
 /**
- * Two-button All | Any control, shared with the keyword tab.
- * @param onChange  called when the user switches between All and Any
+ * Two-button AND | OR control (ET | OU in French), shared with the keyword tab.
+ * @param onChange  called when the user switches between AND and OR
  * @param label()   returns the group's accessible name (re-read on language change)
  */
 export function createAllAny({ onChange, label }) {
@@ -106,7 +106,7 @@ export function createFacet({ key, container, onChange }) {
     key,
     /** Currently selected values (array of strings). */
     getSelected: () => ts.getValue(),
-    /** true = Any (list_has_any), false = All (list_has_all). */
+    /** true = OR (list_has_any), false = AND (list_has_all). */
     isOr: () => mode.isOr(),
     /**
      * Replace the option list after a cascade query.  clearOptions() removes

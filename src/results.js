@@ -10,7 +10,7 @@
  * meta.columns[].visible_results, set in prep/namestable.xlsx.
  *
  * Long list cells are summarised so one record cannot fill the screen:
- * years covered become a range ("1665-6 – 1870-71") with "+64 more" for the
+ * years covered become a range ("1665-6 → 1870-71") with "+64 more" for the
  * years in between, and other lists show their first two values and "+19 more".  Those
  * buttons expand the cell in place.  Below 900 px wide the table becomes a
  * list of records, each with its title, one line of details and its subjects.
@@ -42,7 +42,7 @@ function yearsCell(v) {
   const hidden = new Set(a).size - new Set([a[0], a[a.length - 1]]).size;
   if (hidden <= 0) return escapeHtml([...new Set(a)].join(', '));
   return expandable(
-    `<span class="yr-range">${escapeHtml(a[0])} – ${escapeHtml(a[a.length - 1])}</span>`,
+    `<span class="yr-range">${escapeHtml(a[0])} → ${escapeHtml(a[a.length - 1])}</span>`,
     escapeHtml(a.join(', ')),
     tr('more_n', { n: hidden }),
     'xp-years',

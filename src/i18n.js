@@ -16,8 +16,8 @@
 const STORAGE_KEY = 'portal-lang';
 const STATIC = {
   // All / Any control (was the AND / OR switch)
-  all: { en: 'All', fr: 'Tous' },
-  any: { en: 'Any', fr: 'Au moins un' },
+  all: { en: 'AND', fr: 'ET' },
+  any: { en: 'OR', fr: 'OU' },
   match_mode: { en: '{field}: match all or any selected values', fr: '{field} : toutes les valeurs choisies ou au moins une' },
   // results toolbar and pager
   record: { en: 'record', fr: 'enregistrement' },
