@@ -7,8 +7,7 @@
  * Results and detail view are the same components the first tab uses.
  */
 import { el, staleGuard } from './util.js';
-import { ORDER_BY, buildKwWhere, tableFor } from './sql.js';
-import { query, ensureSearchText } from './db.js';
+import { run } from '#db';
 import { lang, tr } from './i18n.js';
 import { createAllAny } from './facets.js';
 import { createResultsView } from './results.js';
@@ -57,18 +56,13 @@ export function createKwSearch({ panel }) {
   async function refresh() {
     const isCurrent = guard.next();
     results.setLoading(true);
-    const tbl = tableFor(lang());
-    const w = buildKwWhere(state.kw, mode.isOr());
-    const offset = (state.page - 1) * state.pageSize;
     try {
       // Keyword queries read the pre-built search_text column (built once per language).
-      if (w.sql) await ensureSearchText(lang());
-      const [countRows, page] = await Promise.all([
-        query(`SELECT COUNT(*) AS n FROM ${tbl}${w.sql}`, w.params),
-        query(`SELECT * FROM ${tbl}${w.sql}${ORDER_BY} LIMIT ${state.pageSize} OFFSET ${offset}`, w.params),
-      ]);
+      const { total, rows } = await run('kwSearch', {
+        lang: lang(), kw: state.kw, isOr: mode.isOr(), page: state.page, pageSize: state.pageSize,
+      });
       if (!isCurrent()) return;
-      results.render({ rows: page, total: Number(countRows[0].n), page: state.page, pageSize: state.pageSize });
+      results.render({ rows, total, page: state.page, pageSize: state.pageSize });
     } finally {
       if (isCurrent()) results.setLoading(false);
     }
@@ -77,15 +71,15 @@ export function createKwSearch({ panel }) {
   async function openDetail(row) {
     // Spinner while the record loads (seconds if the engine is still starting).
     results.setLoading(true);
-    let rows;
+    let rec;
     try {
-      rows = await query(`SELECT * FROM ${tableFor(lang())} WHERE id = ?`, [row.id]);
+      rec = await run('record', { lang: lang(), id: row.id });
     } finally {
       results.setLoading(false);
     }
-    if (!rows.length) return;
+    if (!rec) return;
     results.show(false);
-    detail.show(rows[0]);
+    detail.show(rec);
     body.scrollIntoView({ block: 'start' });
   }
 

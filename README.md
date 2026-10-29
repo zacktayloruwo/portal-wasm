@@ -7,6 +7,13 @@ the site is plain HTML, CSS and JavaScript hosted on GitHub Pages.
 
 Live site: https://zacktayloruwo.github.io/portal-wasm/
 
+This repository is also where the frontend of the **server edition** is
+edited. [portal-server](https://github.com/zacktayloruwo/portal-server) runs
+the same interface against DuckDB on the Alliance cloud VM
+(https://www.census-recensement.ca/discovery-portal/). It copies `src/`,
+`public/` and the build files from a commit here; see
+[The two editions](#the-two-editions).
+
 - [Develop](#develop)
 - [How it works](#how-it-works)
   - [Data files](#data-files)
@@ -19,6 +26,7 @@ Live site: https://zacktayloruwo.github.io/portal-wasm/
   - [Documentation and About](#documentation-and-about)
   - [Language switching](#language-switching)
   - [Differences from the Shiny app](#differences-from-the-shiny-app)
+  - [The two editions](#the-two-editions)
 - [Update the data](#update-the-data)
 - [Deploy](#deploy)
 
@@ -62,7 +70,7 @@ The pre-rendered `access_link` HTML column was dropped and is rebuilt in the
 browser from the two URL/label lists, and the raw `itemAccess` link text is
 dropped too, since `access_urls` holds the same URLs.
 
-The DuckDB-WASM engine itself is the largest download (about 6.8 MB). `db.js`
+The DuckDB-WASM engine itself is the largest download (about 6.8 MB). `db_wasm.js`
 loads it from jsDelivr, pinned to the installed package version, because
 jsDelivr serves it Brotli-compressed (about 1 MB smaller than GitHub Pages'
 gzip) and lets browsers cache it for a year. If jsDelivr cannot be reached,
@@ -72,7 +80,7 @@ Reading parquet also needs DuckDB's parquet extension, which is not built
 into the engine. Rather than letting the engine fetch it from
 `extensions.duckdb.org`, the site serves its own copy from
 `public/duckdb-ext/<DuckDB version>/<wasm_eh|wasm_mvp>/` (the path layout
-DuckDB expects), and `db.js` points DuckDB's extension repository there and
+DuckDB expects), and `db_wasm.js` points DuckDB's extension repository there and
 loads it as soon as the engine starts. These are DuckDB's own signed files,
 committed to the repo. After upgrading `@duckdb/duckdb-wasm`, refresh them
 with
@@ -81,7 +89,7 @@ with
 node scripts/fetch-duckdb-ext.mjs v1.4.3   # the new DuckDB version, from SELECT version()
 ```
 
-If the copy for the running DuckDB version is missing, `db.js` logs a
+If the copy for the running DuckDB version is missing, `db_wasm.js` logs a
 console warning naming the command to run and falls back to
 `extensions.duckdb.org`, so the app keeps working.
 
@@ -91,7 +99,7 @@ console warning naming the command to run and falls back to
 engine has finished loading:
 
 1. As soon as the script runs, it starts the two large downloads side by
-   side: the DuckDB-WASM engine (in a Web Worker, `db.js`) and the parquet for
+   side: the DuckDB-WASM engine (in a Web Worker, `db_wasm.js`) and the parquet for
    the current language. The language is taken from `?lang=`, then
    `localStorage`, then defaults to English. When both have arrived the
    parquet is copied into an in-memory table, `inventory_en` or
@@ -108,7 +116,8 @@ engine has finished loading:
    (`#search`, `#search_kw`, `#visualize`, `#documentation`, `#about`), so
    tabs are bookmarkable and the back button works.
 
-Every query goes through `db.query()`, which waits until the engine and the
+Every query goes through `db.run(op, args)` (see
+[The two editions](#the-two-editions)), which waits until the engine and the
 first table are ready, so anything the visitor does early (choosing a filter,
 paging, opening a record) simply shows the results spinner until then. A
 failure in any step is written into the overlay instead of leaving a blank
@@ -119,7 +128,9 @@ page.
 ```
 src/
   main.js        boot sequence, EN | FR switch, cross-tab reset, ?selftest
-  db.js          DuckDB-WASM worker, ensureTable(lang), query(sql, params)
+  queries.js     the named operations (cvSearch, kwSearch, record, chipLabels): every query the tabs run
+  db_wasm.js     static edition: DuckDB-WASM worker, ensureTable(lang), run(op, args)
+  db_api.js      server edition: run(op, args) as a POST to the portal-server API
   sql.js         WHERE-clause builders, ORDER BY, tokeniser, accent folding
   i18n.js        tr(), colLabel(), applyStatic(), 'langchange' event
   router.js      hash ⇄ tab, panel visibility
@@ -199,7 +210,7 @@ live, so switching it re-runs the last search immediately.
 Keywords are matched against one pre-built column, `search_text`: the title,
 subjects, geographic coverage and geographic units of each record,
 lower-cased, accent-folded and joined with a control character so a term
-cannot match across two fields. `db.ensureSearchText()` adds the column to a
+cannot match across two fields. `db_wasm.ensureSearchText()` adds the column to a
 language's table the first time keyword search needs it, in about 0.2 s; it
 starts in the background when the keyword tab is opened or the language is
 switched there. For each term `sql.buildKwWhere()` then produces
@@ -324,6 +335,29 @@ Intentional:
 Unchanged: SQL semantics (checked by `prep_db.R` on every run and by the
 `?selftest` page), page-size options, tooltip text, chart data.
 
+### The two editions
+
+The tabs never write SQL. They call `db.run(op, args)` with one of the
+operations in `queries.js`, which checks the arguments and builds the
+statements with `sql.js`. `'#db'` is an alias that `vite.config.js` points
+at one of two files:
+
+| Build | `'#db'` is | Where the operations run |
+|---|---|---|
+| `npm run build` (GitHub Pages) | `db_wasm.js` | DuckDB-WASM, in the browser |
+| `VITE_BACKEND=api BASE_PATH=/discovery-portal/ npm run build` (portal-server) | `db_api.js` | the portal-server backend, which imports this repo's `queries.js` and `sql.js` and runs them in Node's DuckDB |
+
+Only the chosen file is bundled, so the server edition ships no engine. The
+server accepts an operation name and its arguments, never SQL. With
+`VITE_BACKEND=api`, `npm run dev` passes `<base>api/*` to a backend on port
+3003 (`API_PORT`).
+
+`queries.js` and `sql.js` must not use browser APIs, since the server
+imports them as they are. A change to the interface or the data is made
+here, committed, and then copied into portal-server with its
+`scripts/sync-frontend.sh`. Its `scripts/check-sync.sh` reports when the copy
+is behind or has been edited.
+
 ## Update the data
 
 The data files in `public/data/` are produced by `prep/prep_db.R`, in the
@@ -355,6 +389,8 @@ census_inventory_portal/
 4. Commit the changed files in this repo and push `main`. The GitHub Actions
    workflow rebuilds and deploys the site within a few minutes. Open the site
    with `?selftest` to repeat the test searches in the browser.
+5. For the server edition, run `scripts/sync-frontend.sh` in portal-server,
+   then commit and `deploy/deploy.sh` there.
 
 The retired Shiny app's export lives in `prep/old_versions/export_shiny.R`
 and is not needed for this site.

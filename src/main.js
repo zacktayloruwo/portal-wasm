@@ -1,7 +1,8 @@
 /**
  * main.js — application entry point.
  *
- * Boot sequence (all in the browser, no server):
+ * Boot sequence (static edition: all in the browser, no server; in the
+ * server edition the engine and table steps are no-ops, see db_api.js):
  *   0. as soon as this script runs, start the two big downloads side by side:
  *      the DuckDB-WASM engine and the current language's parquet
  *   1. fetch data/meta.json (translations, column metadata, version strings)
@@ -28,8 +29,7 @@ import './styles/base.css';
 import './styles/portal.css';
 import { initI18n, detectLang, applyStatic, setLang, lang, tr } from './i18n.js';
 import { initRouter } from './router.js';
-import { initDb, ensureTable, ensureSearchText, hasTable, holdQueriesUntil, query } from './db.js';
-import { ORDER_BY, buildKwWhere, tableFor } from './sql.js';
+import { initDb, ensureTable, ensureSearchText, hasTable, holdQueriesUntil, query, run } from '#db';
 import { createCvSearch } from './search_cv.js';
 import { createKwSearch } from './search_kw.js';
 import { createVisualize } from './visualize.js';
@@ -79,11 +79,13 @@ const fetchJson = async (path) => {
  * and the counts/ids that R's DuckDB returned.  Running
  * the same statements through DuckDB-WASM proves the two engines agree on the
  * exported parquet.  Keyword cases also run the raw search text through the
- * app's own keyword code (the pre-built search_text column) and must give
- * the same count and first records (app_ok).  Results go to console.table()
- * and window.__selftest.
+ * app's own keyword operation (the pre-built search_text column) and must
+ * give the same count and first records (app_ok).  Results go to
+ * console.table() and window.__selftest.  The server edition takes no SQL
+ * from the browser; its backend runs the same fixtures (npm run selftest).
  */
 async function selftest() {
+  if (import.meta.env.VITE_BACKEND === 'api') { console.warn('selftest: run `npm run selftest` in the server\'s backend/'); return; }
   let cases;
   try { cases = await fetchJson('data/selftest.json'); } catch { console.warn('selftest.json missing'); return; }
   const out = [];
@@ -94,12 +96,9 @@ async function selftest() {
     const idsOk = JSON.stringify(ids) === JSON.stringify(c.first_ids);
     let appOk = true;
     if (c.kw_text != null) {
-      await ensureSearchText(c.lang);
-      const w = buildKwWhere(c.kw_text, c.kw_or);
-      const tbl = tableFor(c.lang);
-      const [{ n: an }] = await query(`SELECT COUNT(*) AS n FROM ${tbl}${w.sql}`, w.params);
-      const aids = (await query(`SELECT id FROM ${tbl}${w.sql}${ORDER_BY} LIMIT 5`, w.params)).map((r) => r.id);
-      appOk = Number(an) === c.expected_count && JSON.stringify(aids) === JSON.stringify(c.first_ids);
+      const r = await run('kwSearch', { lang: c.lang, kw: c.kw_text, isOr: c.kw_or, page: 1, pageSize: 5 });
+      const aids = r.rows.map((row) => row.id);
+      appOk = r.total === c.expected_count && JSON.stringify(aids) === JSON.stringify(c.first_ids);
     }
     out.push({ label: c.label, expected: c.expected_count, actual: Number(n), count_ok: Number(n) === c.expected_count, ids_ok: idsOk, app_ok: appOk });
   }

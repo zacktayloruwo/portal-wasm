@@ -5,7 +5,7 @@
  * (R/mod_search.R, R/mod_search_kw.R, R/fct_search_helpers.R).  Two rules:
  *
  *   1. User-supplied VALUES never go into the SQL text.  They are returned in
- *      a `params` array and bound with `?` placeholders by db.query().  DuckDB
+ *      a `params` array and bound with `?` placeholders by the engine (queries.js).  DuckDB
  *      accepts placeholders inside list literals ([?, ?]) and IN lists.
  *   2. Column and table NAMES come only from the fixed lists below, so string
  *      interpolation of identifiers is safe.
@@ -78,7 +78,7 @@ export function buildCvWhere(state, { exclude } = {}) {
 // Keywords are matched against one pre-built column, search_text: the title,
 // subjects, geographic coverage and geographic units, lower-cased and with
 // accents folded, joined with a control character (chr(1)) so a term can
-// never match across two fields.  db.ensureSearchText() adds the column the
+// never match across two fields.  db_wasm.ensureSearchText() adds the column the
 // first time keyword search is needed (about 0.2 s); after that each search
 // takes a few milliseconds instead of folding every row on every query.
 //
@@ -111,7 +111,7 @@ export function deaccentSql(expr) {
   return ACCENT_PAIRS.reduce((acc, [from, to]) => `replace(${acc}, '${from}', '${to}')`, expr);
 }
 
-/** SQL expression that builds search_text for one row (see db.ensureSearchText). */
+/** SQL expression that builds search_text for one row (see db_wasm.ensureSearchText). */
 export const SEARCH_TEXT_SQL = deaccentSql(
   "LOWER(concat_ws(chr(1), itemTitle, array_to_string(itemSubject, chr(1)), " +
   "array_to_string(itemGeoCoverage, chr(1)), array_to_string(itemGeoUnits, chr(1))))",

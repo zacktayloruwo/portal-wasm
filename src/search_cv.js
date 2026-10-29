@@ -2,7 +2,8 @@
  * search_cv.js — "Search by Controlled Vocabulary" tab (port of R/mod_search.R).
  *
  * Five facet dropdowns (facets.js) drive one WHERE clause (sql.buildCvWhere).
- * Every change triggers refresh(), which runs, in one batch:
+ * Every change triggers refresh(), which runs the cvSearch operation
+ * (queries.js); it answers, in one batch:
  *   - five SELECT DISTINCT queries that recompute each dropdown's options given
  *     the *other* selections (the "cascade": choices narrow as you filter);
  *   - COUNT(*) for the pagination text;
@@ -14,8 +15,8 @@
  * refresh cannot overwrite the results of a newer one.
  */
 import { el, staleGuard, listToArray } from './util.js';
-import { query } from './db.js';
-import { FACETS, ORDER_BY, buildCvWhere, tableFor } from './sql.js';
+import { run } from '#db';
+import { FACETS } from './sql.js';
 import { lang } from './i18n.js';
 import { createFacet } from './facets.js';
 import { createResultsView } from './results.js';
@@ -56,7 +57,7 @@ export function createCvSearch({ panel }) {
   const detail = createDetailView({ container: body, onBack: closeDetail });
 
   // ── Queries ──
-  // Snapshot the widgets into `state` so buildCvWhere sees consistent input.
+  // Snapshot the widgets into `state` so the query sees consistent input.
   function readState() {
     for (const f of FACETS) {
       state.selected[f.key] = widgets[f.key].getSelected();
@@ -64,36 +65,19 @@ export function createCvSearch({ panel }) {
     }
   }
 
-  /**
-   * Requery.  `facets: false` skips the five dropdown queries (paging only).
-   * All queries are issued at once; DuckDB's worker executes them serially,
-   * Promise.all just collects the results.
-   */
+  /** Requery.  `facets: false` skips the five dropdown queries (paging only). */
   async function refresh({ facets = true } = {}) {
     const isCurrent = guard.next();
     readState();
     results.setLoading(true);
-    const tbl = tableFor(lang());
-    const all = buildCvWhere(state);
     try {
-      const facetJobs = facets ? FACETS.map((f) => {
-        // Census name excludes its own clause so several censuses can be
-        // picked in turn; list facets use the full WHERE (their selected
-        // values are still present because the rows that matched contain them).
-        const w = f.list ? all : buildCvWhere(state, { exclude: f.key });
-        const expr = f.list ? `UNNEST(${f.key})` : f.key;
-        return query(`SELECT DISTINCT ${expr} AS val FROM ${tbl}${w.sql} ORDER BY val`, w.params)
-          .then((rows) => rows.map((r) => r.val).filter((v) => v != null && v !== ''));
-      }) : [];
-      const offset = (state.page - 1) * state.pageSize;
-      const [choices, countRows, page] = await Promise.all([
-        Promise.all(facetJobs),
-        query(`SELECT COUNT(*) AS n FROM ${tbl}${all.sql}`, all.params),
-        query(`SELECT * FROM ${tbl}${all.sql}${ORDER_BY} LIMIT ${state.pageSize} OFFSET ${offset}`, all.params),
-      ]);
+      const { choices, total, rows } = await run('cvSearch', {
+        lang: lang(), selected: state.selected, isOr: state.isOr,
+        page: state.page, pageSize: state.pageSize, facets,
+      });
       if (!isCurrent()) return; // superseded by a newer refresh
-      if (facets) FACETS.forEach((f, i) => widgets[f.key].setChoices(choices[i]));
-      results.render({ rows: page, total: Number(countRows[0].n), page: state.page, pageSize: state.pageSize });
+      if (facets) FACETS.forEach((f) => widgets[f.key].setChoices(choices[f.key]));
+      results.render({ rows, total, page: state.page, pageSize: state.pageSize });
     } finally {
       if (isCurrent()) results.setLoading(false);
     }
@@ -103,15 +87,15 @@ export function createCvSearch({ panel }) {
   async function openDetail(row) {
     // Spinner while the record loads (seconds if the engine is still starting).
     results.setLoading(true);
-    let rows;
+    let rec;
     try {
-      rows = await query(`SELECT * FROM ${tableFor(lang())} WHERE id = ?`, [row.id]);
+      rec = await run('record', { lang: lang(), id: row.id });
     } finally {
       results.setLoading(false);
     }
-    if (!rows.length) return;
+    if (!rec) return;
     results.show(false);
-    detail.show(rows[0]);
+    detail.show(rec);
     body.scrollIntoView({ block: 'start' });
   }
 

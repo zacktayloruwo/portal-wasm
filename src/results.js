@@ -21,8 +21,8 @@
 import { el, escapeHtml, listToArray } from './util.js';
 import { accessLinksHtml, chipLabelHtml } from './links.js';
 import { getMeta, tr, colLabel, fmtNumber, lang } from './i18n.js';
-import { PAGE_SIZES, tableFor } from './sql.js';
-import { query } from './db.js';
+import { PAGE_SIZES } from './sql.js';
+import { run } from '#db';
 
 const NARROW = window.matchMedia('(max-width: 900px)');
 
@@ -44,9 +44,7 @@ const chipWidth = new Map();   // lang -> number, once known
 function measureWidestChip(l) {
   if (!widestChip.has(l)) {
     widestChip.set(l, (async () => {
-      const rows = await query(
-        `SELECT label, MAX(n) AS n FROM (SELECT id, label, COUNT(*) AS n FROM ` +
-        `(SELECT id, UNNEST(access_labels) AS label FROM ${tableFor(l)}) GROUP BY id, label) GROUP BY label`);
+      const rows = await run('chipLabels', { lang: l });
       await document.fonts.ready;
       const probe = el('div', {
         class: 'portal-chip-probe', 'aria-hidden': 'true',

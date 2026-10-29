@@ -1,5 +1,10 @@
 /**
- * db.js — DuckDB-WASM lifecycle and the single query() helper.
+ * db_wasm.js — the static edition's database: DuckDB-WASM in the browser.
+ *
+ * The tabs import '#db', which vite.config.js points at this file, or at
+ * db_api.js for the server edition (VITE_BACKEND=api).  Both export the same
+ * functions; run(op, args) executes one of the named operations in
+ * queries.js.
  *
  * DuckDB runs inside a Web Worker; this module talks to it through the
  * AsyncDuckDB API.  The inventory is *materialised* into an in-memory table
@@ -31,6 +36,7 @@ import mvpWorker from '@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js?url
 import ehWasm from '@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url';
 import ehWorker from '@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?url';
 import { tableFor, SEARCH_TEXT_SQL } from './sql.js';
+import { opFor, needsSearchText } from './queries.js';
 
 let db = null;
 let conn = null;
@@ -229,4 +235,14 @@ export async function query(sql, params = []) {
     table = await conn.query(sql);
   }
   return table.toArray().map((r) => r.toJSON());
+}
+
+/**
+ * Run one named operation from queries.js (the tabs' only way in).  A keyword
+ * search first builds this language's search_text column if it is missing.
+ */
+export async function run(op, args) {
+  const fn = opFor(op);
+  if (needsSearchText(op, args)) await ensureSearchText(args.lang);
+  return fn(query, args);
 }
