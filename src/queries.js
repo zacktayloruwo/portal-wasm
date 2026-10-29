@@ -17,7 +17,7 @@
  * This file and sql.js must stay free of browser APIs: the server imports
  * them as they are.
  */
-import { FACETS, ORDER_BY, PAGE_SIZES, buildCvWhere, buildKwWhere, tableFor } from './sql.js';
+import { FACETS, LANGS, ORDER_BY, PAGE_SIZES, buildCvWhere, buildKwWhere, tableFor } from './sql.js';
 
 const MAX_TEXT = 500;      // longest keyword text accepted
 const MAX_VALUES = 200;    // most values selected in one facet
@@ -29,6 +29,11 @@ function bad(msg) {
 }
 
 const isStr = (v) => typeof v === 'string' && v.length <= MAX_TEXT;
+
+function checkLang(lang) {
+  if (!LANGS.includes(lang)) bad('bad lang');
+  return tableFor(lang);
+}
 
 function checkPage({ page, pageSize }) {
   if (!Number.isInteger(page) || page < 1) bad('bad page');
@@ -58,7 +63,7 @@ export const OPS = {
    * facets is false) each dropdown's choices given the other selections.
    */
   async cvSearch(q, { lang, selected, isOr, page, pageSize, facets = true }) {
-    const tbl = tableFor(lang);
+    const tbl = checkLang(lang);
     const { limit, offset } = checkPage({ page, pageSize });
     const state = checkFacets(selected, isOr);
     const all = buildCvWhere(state);
@@ -85,7 +90,7 @@ export const OPS = {
 
   /** Keyword tab: the page of results and the total.  Reads search_text. */
   async kwSearch(q, { lang, kw = '', isOr = false, page, pageSize }) {
-    const tbl = tableFor(lang);
+    const tbl = checkLang(lang);
     const { limit, offset } = checkPage({ page, pageSize });
     if (!isStr(kw)) bad('bad kw');
     const w = buildKwWhere(kw, isOr === true);
@@ -98,7 +103,7 @@ export const OPS = {
 
   /** One full record, for the detail view; null if the id is unknown. */
   async record(q, { lang, id }) {
-    const tbl = tableFor(lang);
+    const tbl = checkLang(lang);
     if (!isStr(id)) bad('bad id');
     const rows = await q(`SELECT * FROM ${tbl} WHERE id = ?`, [id]);
     return rows[0] ?? null;
@@ -109,7 +114,7 @@ export const OPS = {
    * record, so results.js can size the Links column to the widest chip.
    */
   async chipLabels(q, { lang }) {
-    const tbl = tableFor(lang);
+    const tbl = checkLang(lang);
     return q(`SELECT label, MAX(n) AS n FROM (SELECT id, label, COUNT(*) AS n FROM `
       + `(SELECT id, UNNEST(access_labels) AS label FROM ${tbl}) GROUP BY id, label) GROUP BY label`);
   },
