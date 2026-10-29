@@ -8,7 +8,7 @@ the site is plain HTML, CSS and JavaScript hosted on GitHub Pages.
 Live site: https://zacktayloruwo.github.io/portal-wasm/
 
 This repository is also where the frontend of the **server edition** is
-edited. [portal-server](https://github.com/zacktayloruwo/portal-server) runs
+edited. portal-server (a private repository, `zacktayloruwo/portal-server`) runs
 the same interface against DuckDB on the Alliance cloud VM
 (https://www.census-recensement.ca/discovery-portal/). It copies `src/`,
 `public/` and the build files from a commit here; see
