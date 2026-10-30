@@ -68,19 +68,24 @@ export function createKwSearch({ panel }) {
     }
   }
 
-  async function openDetail(row) {
+  // Title clicked: fetch the full record by id and swap the results for the detail view.
+  function openDetail(row) { return showRecord(row.id); }
+
+  /** Fetch record `id` in the current language and show it; false if there is none. */
+  async function showRecord(id, { scroll = true } = {}) {
     // Spinner while the record loads (seconds if the engine is still starting).
     results.setLoading(true);
     let rec;
     try {
-      rec = await run('record', { lang: lang(), id: row.id });
+      rec = await run('record', { lang: lang(), id });
     } finally {
       results.setLoading(false);
     }
-    if (!rec) return;
+    if (!rec) return false;
     results.show(false);
     detail.show(rec);
-    body.scrollIntoView({ block: 'start' });
+    if (scroll) body.scrollIntoView({ block: 'start' });
+    return true;
   }
 
   /** Show the opening view from snapshot_<lang>.json (see search_cv.js). */
@@ -95,20 +100,26 @@ export function createKwSearch({ panel }) {
     results.show(true);
   }
 
-  /** Empty the box, reset to All, show all rows (used on tab switch and language change). */
-  function reset() {
+  /**
+   * Empty the box, reset to All, show all rows (used on tab switch and
+   * language change).  keepDetail leaves an open record on screen.
+   */
+  function reset({ keepDetail = false } = {}) {
     input.value = '';
     mode.reset();
     state.kw = '';
     state.page = 1;
-    closeDetail();
+    if (!keepDetail) closeDetail();
     return refresh();
   }
 
-  document.addEventListener('langchange', () => {
+  document.addEventListener('langchange', async () => {
     results.relabel();
-    detail.relabel();
-    reset();
+    // An open record stays open in the other language (see search_cv.js).
+    const openId = detail.visible ? detail.id : null;
+    if (!openId) { detail.relabel(); reset(); return; }
+    reset({ keepDetail: true });
+    if (!(await showRecord(openId, { scroll: false }).catch(() => false))) closeDetail();
   });
 
   return { refresh, reset, showSnapshot };

@@ -84,19 +84,23 @@ export function createCvSearch({ panel }) {
   }
 
   // Title clicked: fetch the full record by id and swap the results for the detail view.
-  async function openDetail(row) {
+  function openDetail(row) { return showRecord(row.id); }
+
+  /** Fetch record `id` in the current language and show it; false if there is none. */
+  async function showRecord(id, { scroll = true } = {}) {
     // Spinner while the record loads (seconds if the engine is still starting).
     results.setLoading(true);
     let rec;
     try {
-      rec = await run('record', { lang: lang(), id: row.id });
+      rec = await run('record', { lang: lang(), id });
     } finally {
       results.setLoading(false);
     }
-    if (!rec) return;
+    if (!rec) return false;
     results.show(false);
     detail.show(rec);
-    body.scrollIntoView({ block: 'start' });
+    if (scroll) body.scrollIntoView({ block: 'start' });
+    return true;
   }
 
   /**
@@ -116,21 +120,28 @@ export function createCvSearch({ panel }) {
     results.show(true);
   }
 
-  /** Clear every facet and start over (used when leaving the keyword tab and on language change). */
-  function reset() {
+  /**
+   * Clear every facet and start over (used when leaving the keyword tab and on
+   * language change).  keepDetail leaves an open record on screen.
+   */
+  function reset({ keepDetail = false } = {}) {
     FACETS.forEach((f) => widgets[f.key].clear());
     state.page = 1;
-    closeDetail();
+    if (!keepDetail) closeDetail();
     return refresh();
   }
 
-  document.addEventListener('langchange', () => {
+  document.addEventListener('langchange', async () => {
     // Facet values are language-specific ("Agriculture" vs "Agriculture" is
     // fine, but most differ), so selections are cleared rather than carried
     // over to the other table where they would match nothing.
     results.relabel();
-    detail.relabel();
-    reset();
+    // An open record stays open: both tables use the same id.  It is redrawn
+    // once the other language's row arrives; without one, back to the results.
+    const openId = detail.visible ? detail.id : null;
+    if (!openId) { detail.relabel(); reset(); return; }
+    reset({ keepDetail: true });
+    if (!(await showRecord(openId, { scroll: false }).catch(() => false))) closeDetail();
   });
 
   return { refresh, reset, showSnapshot };

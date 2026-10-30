@@ -53,5 +53,7 @@ export function createDetailView({ container, onBack }) {
     /** Redraw labels/tooltips after a language change (the row itself is requeried by the caller). */
     relabel() { render(); },
     get visible() { return !root.hidden; },
+    /** The id of the record shown (the same in both languages), or null. */
+    get id() { return row?.id ?? null; },
   };
 }
