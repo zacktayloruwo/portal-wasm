@@ -11,7 +11,7 @@
  * That reproduces the pivot_longer + left_join(popups) pipeline in mod_search.R.
  */
 import { el, escapeHtml, escapeAttr, joinList } from './util.js';
-import { accessLinksHtml } from './links.js';
+import { urlListHtml } from './links.js';
 import { getMeta, lang, tr } from './i18n.js';
 import { initTippy } from './tooltips.js';
 
@@ -26,7 +26,7 @@ export function createDetailView({ container, onBack }) {
   let row = null; // the record currently shown (full row from SELECT * WHERE id = ?)
 
   function valueHtml(c) {
-    if (c.key === 'access_link') return accessLinksHtml(row.access_urls, row.access_labels);
+    if (c.key === 'access_link') return urlListHtml(row.access_urls);
     const v = c.list ? joinList(row[c.key]) : row[c.key];
     return escapeHtml(v ?? '');
   }

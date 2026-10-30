@@ -318,15 +318,20 @@ h3 { font-size: 21px; margin: 18px 0 8px; }
 }
 
 /* ── Record view ────────────────────────────────────────────────────────── */
+/* The labels column is narrow (fixed layout: the first row's width rules) and
+   long labels wrap; the values get the rest. */
 .portal-detail-table th.portal-detail-key {
+  width: 15em;
   font-size: 14px;
   color: var(--ink);
-  min-width: 100px;
-  white-space: nowrap;
   vertical-align: top;
   border-bottom: 1px solid var(--rule);
 }
-.portal-detail-table td.portal-detail-value { min-width: 300px; vertical-align: top; }
+@media (max-width: 600px) { .portal-detail-table th.portal-detail-key { width: 38%; } }
+.portal-detail-table td.portal-detail-value { vertical-align: top; }
+/* Links: the full URL, one per line; long ones break anywhere. */
+.portal-url { display: block; text-decoration: underline; overflow-wrap: anywhere; }
+.portal-url + .portal-url { margin-top: 4px; }
 .portal-detail-table span[data-tippy-content] { cursor: help; }
 .portal-detail-table tbody tr:hover { background: transparent; }
 .portal-back-btn { margin: 16px 0 4px; }

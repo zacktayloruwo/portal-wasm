@@ -9,6 +9,7 @@
  *
  * With { group: true } (the results table), several links to the same site
  * become one chip with a count, a <details> element that opens to list them.
+ * The record view lists the full URLs instead (urlListHtml).
  */
 import { escapeAttr, escapeHtml, listToArray } from './util.js';
 import { tr } from './i18n.js';
@@ -20,6 +21,10 @@ const chip = (href, text) =>
 // drawn below; results.js renders these off-screen to find the widest chip.
 export const chipLabelHtml = (label, n = 1) =>
   (n > 1 ? `${escapeHtml(label)} <b>×${n}</b>` : escapeHtml(label));
+
+/** The record view's links: each full URL as a plain link, one per line. */
+export const urlListHtml = (urls) => listToArray(urls).filter(Boolean).map((href) =>
+  `<a href="${escapeAttr(href)}" class="portal-url" target="_blank" rel="noopener">${escapeHtml(href)}</a>`).join('');
 
 export function accessLinksHtml(urls, labels, { group = false } = {}) {
   const l = listToArray(labels);
