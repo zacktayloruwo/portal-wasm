@@ -19,6 +19,9 @@ const STATIC = {
   all: { en: 'AND', fr: 'ET' },
   any: { en: 'OR', fr: 'OU' },
   match_mode: { en: '{field}: match all or any selected values', fr: '{field} : toutes les valeurs choisies ou au moins une' },
+  // selections with no equivalent after a language switch
+  not_carried: { en: 'Not available in English, removed: {terms}', fr: 'Non disponible en français, retiré : {terms}' },
+  dismiss: { en: 'Dismiss', fr: 'Fermer' },
   // results toolbar and pager
   record: { en: 'record', fr: 'enregistrement' },
   records: { en: 'records', fr: 'enregistrements' },

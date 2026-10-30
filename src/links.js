@@ -14,8 +14,17 @@
 import { escapeAttr, escapeHtml, listToArray } from './util.js';
 import { tr } from './i18n.js';
 
+// Only http(s) links are drawn as links: a javascript: or data: URL in the
+// inventory would otherwise run when clicked.  Anything else becomes "#".
+function safeHref(href) {
+  try {
+    const u = new URL(href);
+    return u.protocol === 'http:' || u.protocol === 'https:' ? u.href : '#';
+  } catch { return '#'; }
+}
+
 const chip = (href, text) =>
-  `<a href="${escapeAttr(href)}" class="accessbutton" target="_blank" rel="noopener">${escapeHtml(text)}</a>`;
+  `<a href="${escapeAttr(safeHref(href))}" class="accessbutton" target="_blank" rel="noopener">${escapeHtml(text)}</a>`;
 
 // Inner HTML of a chip for a site with n links (n > 1 adds the count), as
 // drawn below; results.js renders these off-screen to find the widest chip.
@@ -24,7 +33,7 @@ export const chipLabelHtml = (label, n = 1) =>
 
 /** The record view's links: each full URL as a plain link, one per line. */
 export const urlListHtml = (urls) => listToArray(urls).filter(Boolean).map((href) =>
-  `<a href="${escapeAttr(href)}" class="portal-url" target="_blank" rel="noopener">${escapeHtml(href)}</a>`).join('');
+  `<a href="${escapeAttr(safeHref(href))}" class="portal-url" target="_blank" rel="noopener">${escapeHtml(href)}</a>`).join('');
 
 export function accessLinksHtml(urls, labels, { group = false } = {}) {
   const l = listToArray(labels);

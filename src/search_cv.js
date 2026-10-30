@@ -17,10 +17,21 @@
 import { el, staleGuard, listToArray } from './util.js';
 import { run } from '#db';
 import { FACETS } from './sql.js';
-import { lang } from './i18n.js';
+import { lang, tr } from './i18n.js';
 import { createFacet } from './facets.js';
 import { createResultsView } from './results.js';
 import { createDetailView } from './detail.js';
+
+// data/vocab.json (prep/vocab.R): each field's terms paired across the two
+// languages, { field: { en: { term: French term }, fr: { term: English term } } }.
+// Fetched once, the first time a selection may need carrying across.
+let vocabPromise = null;
+function loadVocab() {
+  vocabPromise ??= fetch(`${import.meta.env.BASE_URL}data/vocab.json`, { cache: 'no-cache' })
+    .then((r) => { if (!r.ok) throw new Error(`vocab.json: HTTP ${r.status}`); return r.json(); })
+    .catch((err) => { vocabPromise = null; throw err; });
+  return vocabPromise;
+}
 
 export function createCvSearch({ panel }) {
   const state = { selected: {}, isOr: {}, page: 1, pageSize: 25 };
@@ -29,15 +40,32 @@ export function createCvSearch({ panel }) {
 
   // ── DOM: one-sentence intro, two columns of facets (the second narrower), results ──
   const cols = [el('div', { class: 'portal-filter-col' }), el('div', { class: 'portal-filter-col' })];
+  // After a language switch: the selected terms that have no equivalent.
+  const noteText = el('span');
+  const noteClose = el('button', { type: 'button', class: 'portal-note-close', html: '&times;' });
+  const note = el('p', { class: 'portal-note', role: 'status', hidden: true }, [noteText, noteClose]);
+  const showNote = (terms) => {
+    note.hidden = terms.length === 0;
+    noteText.textContent = terms.length ? tr('not_carried', { terms: terms.join(', ') }) : '';
+    noteClose.setAttribute('aria-label', tr('dismiss'));
+  };
+  noteClose.addEventListener('click', () => showNote([]));
   const filters = el('div', { class: 'portal-filters' }, [
     el('p', { class: 'portal-intro', 'data-i18n': 'instructions', 'data-i18n-html': '' }),
     el('div', { class: 'portal-filter-grid' }, cols),
+    note,
   ]);
   const body = el('div', { class: 'portal-body' });
   panel.append(filters, body);
 
   // Any facet or All | Any change: back to page 1 and requery everything.
-  const onFacetChange = () => { state.page = 1; refresh(); };
+  // The first selection also fetches the term pairs, ready for a switch.
+  const onFacetChange = () => {
+    showNote([]);
+    loadVocab().catch(() => {});
+    state.page = 1;
+    refresh();
+  };
   // [column, FACETS index]:
   //   col 0: Subject, Name of Census, Years covered
   //   col 1: Geographic units, Content type
@@ -120,28 +148,52 @@ export function createCvSearch({ panel }) {
     results.show(true);
   }
 
-  /**
-   * Clear every facet and start over (used when leaving the keyword tab and on
-   * language change).  keepDetail leaves an open record on screen.
-   */
-  function reset({ keepDetail = false } = {}) {
+  /** Clear every facet and start over (used when leaving the keyword tab). */
+  function reset() {
     FACETS.forEach((f) => widgets[f.key].clear());
+    showNote([]);
     state.page = 1;
-    if (!keepDetail) closeDetail();
+    closeDetail();
     return refresh();
   }
 
-  document.addEventListener('langchange', async () => {
-    // Facet values are language-specific ("Agriculture" vs "Agriculture" is
-    // fine, but most differ), so selections are cleared rather than carried
-    // over to the other table where they would match nothing.
+  /**
+   * Swap each field's selected terms for their equivalents in the new
+   * language (vocab.json), keeping every AND | OR choice.  Terms without an
+   * equivalent are dropped and listed under the fields.  Two terms with the
+   * same equivalent become one.
+   */
+  async function carrySelections(from) {
+    const before = FACETS.map((f) => ({
+      key: f.key, values: widgets[f.key].getSelected(), isOr: widgets[f.key].isOr(),
+    }));
+    let vocab = null;
+    if (before.some((b) => b.values.length)) {
+      try { vocab = await loadVocab(); } catch (err) { console.error(err); }
+    }
+    const dropped = [];
+    for (const b of before) {
+      const pairs = vocab?.[b.key]?.[from] ?? {};
+      const values = [];
+      for (const v of b.values) {
+        const to = Object.hasOwn(pairs, v) ? pairs[v] : null;
+        if (to == null) { if (vocab) dropped.push(v); } else if (!values.includes(to)) values.push(to);
+      }
+      widgets[b.key].restore(values, b.isOr);
+    }
+    showNote(dropped);
+  }
+
+  document.addEventListener('langchange', async (e) => {
     results.relabel();
     // An open record stays open: both tables use the same id.  It is redrawn
     // once the other language's row arrives; without one, back to the results.
     const openId = detail.visible ? detail.id : null;
-    if (!openId) { detail.relabel(); reset(); return; }
-    reset({ keepDetail: true });
-    if (!(await showRecord(openId, { scroll: false }).catch(() => false))) closeDetail();
+    if (!openId) detail.relabel();
+    await carrySelections(e.detail.lang === 'en' ? 'fr' : 'en');
+    state.page = 1;
+    refresh();
+    if (openId && !(await showRecord(openId, { scroll: false }).catch(() => false))) closeDetail();
   });
 
   return { refresh, reset, showSnapshot };

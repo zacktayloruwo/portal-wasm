@@ -13,7 +13,8 @@
  * shows that text on hover, focus or click.
  *
  * The widget does not know anything about SQL.  It reports changes through
- * onChange(key) and exposes getSelected()/isOr() for search_cv.js to read.
+ * onChange(key) and exposes getSelected()/isOr() for search_cv.js to read,
+ * and restore() to put a selection back after a language switch.
  */
 import TomSelect from 'tom-select';
 import 'tom-select/dist/css/tom-select.css';
@@ -50,7 +51,13 @@ export function createAllAny({ onChange, label }) {
   const relabel = () => group.setAttribute('aria-label', label());
   relabel();
   document.addEventListener('langchange', relabel);
-  return { el: group, isOr: () => isOr, reset: () => set(false, false) };
+  return {
+    el: group,
+    isOr: () => isOr,
+    reset: () => set(false, false),
+    /** Set AND (false) or OR (true) without onChange. */
+    setOr: (v) => set(Boolean(v), false),
+  };
 }
 
 // Field name plus, when help text exists, the info glyph and its tooltip.
@@ -123,6 +130,17 @@ export function createFacet({ key, container, onChange }) {
     clear() {
       ts.clear(true);
       mode.reset();
+    },
+    /**
+     * Select these values and set AND | OR silently, replacing the current
+     * selection (a language switch).  Values not yet among the options are
+     * added; the next cascade query brings the rest.
+     */
+    restore(values, isOr) {
+      ts.clear(true);
+      ts.addOptions(values.map((v) => ({ value: v, text: v })));
+      ts.setValue(values, true);
+      mode.setOr(isOr);
     },
     setDisabled(d) { if (d) ts.disable(); else ts.enable(); },
   };

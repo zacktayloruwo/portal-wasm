@@ -102,11 +102,12 @@ export function createKwSearch({ panel }) {
 
   /**
    * Empty the box, reset to All, show all rows (used on tab switch and
-   * language change).  keepDetail leaves an open record on screen.
+   * language change).  keepDetail leaves an open record on screen; keepMode
+   * keeps AND | OR (a language switch keeps it, a tab switch does not).
    */
-  function reset({ keepDetail = false } = {}) {
+  function reset({ keepDetail = false, keepMode = false } = {}) {
     input.value = '';
-    mode.reset();
+    if (!keepMode) mode.reset();
     state.kw = '';
     state.page = 1;
     if (!keepDetail) closeDetail();
@@ -116,9 +117,10 @@ export function createKwSearch({ panel }) {
   document.addEventListener('langchange', async () => {
     results.relabel();
     // An open record stays open in the other language (see search_cv.js).
+    // The words typed are cleared, being in the old language; AND | OR stays.
     const openId = detail.visible ? detail.id : null;
-    if (!openId) { detail.relabel(); reset(); return; }
-    reset({ keepDetail: true });
+    if (!openId) { detail.relabel(); reset({ keepMode: true }); return; }
+    reset({ keepDetail: true, keepMode: true });
     if (!(await showRecord(openId, { scroll: false }).catch(() => false))) closeDetail();
   });
 
