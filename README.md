@@ -64,6 +64,7 @@ in the project's data-preparation folder (see [Update the data](#update-the-data
 | `viz_counts.json` | pre-aggregated counts for the Visualize tab | first visit to the tab |
 | `snapshot_en.json`, `snapshot_fr.json` | the opening view: first 25 records in the default order, the record count, and every search field's choices (about 6 KB compressed) | at boot, for the current language |
 | `selftest.json` | query fixtures with the counts R's DuckDB produced | only with `?selftest` |
+| `vocab.json` | each search field's terms paired across the two languages, from the hand-edited `prep/vocab_en_fr.csv` (by `prep/vocab.R`) | the first time a field value is selected |
 
 Compared with the Shiny app's 67 MB DuckDB file, each parquet is about 1.2 MB.
 The pre-rendered `access_link` HTML column was dropped and is rebuilt in the
@@ -310,9 +311,18 @@ The EN/FR switch in the header:
 3. each tab module listens for that event and starts over against the other
    table (`inventory_fr` ⇄ `inventory_en`).
 
-Facet values, keyword hits and chart items are language-specific, so the
-search tabs and the Visualize tab clear their selections on a switch rather
-than carrying over values that would match nothing.
+What carries over:
+
+- **Search by Controlled Vocabulary** keeps its selections: each selected
+  term is swapped for its equivalent from `vocab.json`, and every field keeps
+  its AND | OR.  A term with no equivalent is dropped and named in a note
+  under the fields; two terms with the same equivalent become one.
+- **Search by Keyword** keeps AND | OR but clears the words typed, which are
+  in the old language.
+- **An open record** stays open, redrawn from the other table (the two share
+  ids); Back then shows the carried-over results.  The few ids found in one
+  language only fall back to the results.
+- **Visualize** clears its selections.
 
 ### Differences from the Shiny app
 
@@ -320,8 +330,8 @@ Intentional:
 
 - Cell text is HTML-escaped. The Shiny tables rendered values as HTML, which
   swallowed titles such as `<25 Years by Age`.
-- Switching language clears the current filters instead of keeping
-  now-meaningless selections.
+- Switching language translates the current filters (`vocab.json`) instead
+  of keeping selections that would match nothing in the other language.
 - Link hrefs are the raw URLs from `itemAccess`; the old pre-rendered HTML had
   URL-decoded them.
 - Row hover highlight is done in CSS instead of reactable.
